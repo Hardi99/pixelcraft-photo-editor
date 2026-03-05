@@ -37,7 +37,7 @@ export function useCanvas() {
       // Instagram preset filters
       if (preset) {
         for (const fc of preset.fabricFilters) {
-          const FilterClass = (fabric.Image.filters as Record<string, new (o: object) => fabric.IBaseFilter>)[fc.type];
+          const FilterClass = (fabric.Image.filters as unknown as Record<string, new (o: object) => fabric.IBaseFilter>)[fc.type];
           if (FilterClass) filters.push(new FilterClass(fc.options));
         }
       }
