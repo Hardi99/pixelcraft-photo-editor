@@ -1,0 +1,28 @@
+# Ruby / Rails
+backend/.bundle/
+backend/log/
+backend/tmp/
+backend/storage/
+backend/vendor/bundle
+backend/*.log
+backend/db/*.sqlite3
+
+# Node
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Claude
+.claude/
+
+# Server PID
+backend/tmp/pids/
