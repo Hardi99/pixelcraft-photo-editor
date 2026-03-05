@@ -11,17 +11,18 @@ import type { Project } from "@/types";
 export function Gallery() {
   const { data: projects, isLoading } = useProjects();
   const deleteProject = useDeleteProject();
-  const { canvas, setActiveView, setImageLoaded, setCurrentProject, setProjectTitle, startEditingTimer, pushHistory } =
+  const { canvas, setActiveView, setImageLoaded, setCurrentProject, setProjectTitle, startEditingTimer, pushHistory, setImageUrl } =
     useEditorStore();
 
   function openProject(project: Project) {
-    if (!canvas || !project.image_url) return;
+    if (!canvas || !project.thumbnail) return;
 
     setCurrentProject(project);
     setProjectTitle(project.title);
+    setImageUrl(project.thumbnail);
 
     fabric.Image.fromURL(
-      project.image_url,
+      project.thumbnail,
       (img) => {
         const imgScale = Math.max(canvas.width! / img.width!, canvas.height! / img.height!);
         img.set({
@@ -86,9 +87,9 @@ export function Gallery() {
           >
             {/* Thumbnail */}
             <div className="relative aspect-square overflow-hidden bg-zinc-800">
-              {project.image_url ? (
+              {project.thumbnail ? (
                 <img
-                  src={project.image_url}
+                  src={project.thumbnail}
                   alt={project.title}
                   className="h-full w-full object-cover transition-transform group-hover:scale-105"
                 />

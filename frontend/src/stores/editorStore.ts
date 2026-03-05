@@ -26,6 +26,7 @@ interface EditorStore {
   currentProject: Project | null;
   projectTitle: string;
   editingStartTime: number | null;
+  imageUrl: string | null;
 
   setCanvas: (canvas: FabricCanvas) => void;
   setImageLoaded: (loaded: boolean) => void;
@@ -37,6 +38,7 @@ interface EditorStore {
   setSelectedObjectId: (id: string | null) => void;
   setCurrentProject: (project: Project | null) => void;
   setProjectTitle: (title: string) => void;
+  setImageUrl: (url: string | null) => void;
   startEditingTimer: () => void;
   getEditingTime: () => number;
   pushHistory: (snapshot: string) => void;
@@ -61,6 +63,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   currentProject: null,
   projectTitle: "Mon projet",
   editingStartTime: null,
+  imageUrl: null,
 
   setCanvas: (canvas) => set({ canvas }),
   setImageLoaded: (imageLoaded) => set({ imageLoaded }),
@@ -73,6 +76,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setSelectedObjectId: (selectedObjectId) => set({ selectedObjectId }),
   setCurrentProject: (currentProject) => set({ currentProject }),
   setProjectTitle: (projectTitle) => set({ projectTitle }),
+  setImageUrl: (imageUrl) => set({ imageUrl }),
   startEditingTimer: () => set({ editingStartTime: Date.now() }),
 
   getEditingTime: () => {
@@ -117,5 +121,6 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       currentProject: null,
       projectTitle: "Mon projet",
       editingStartTime: null,
+      imageUrl: null,
     }),
 }));

@@ -16,26 +16,18 @@ export const api = {
   projects: {
     list: () => request<Project[]>("/api/v1/projects"),
     get: (id: number) => request<Project>(`/api/v1/projects/${id}`),
-    create: (data: FormData) =>
-      request<Project>("/api/v1/projects", { method: "POST", body: data }),
-    update: (id: number, data: Partial<Project> & { image?: File }) => {
-      // If we have an image, use FormData; otherwise JSON
-      if (data.image) {
-        const fd = new FormData();
-        fd.append("image", data.image);
-        if (data.layers_json) fd.append("project[layers_json]", data.layers_json);
-        if (data.editing_time !== undefined)
-          fd.append("project[editing_time]", String(data.editing_time));
-        if (data.exports_count !== undefined)
-          fd.append("project[exports_count]", String(data.exports_count));
-        return request<Project>(`/api/v1/projects/${id}`, { method: "PATCH", body: fd });
-      }
-      return request<Project>(`/api/v1/projects/${id}`, {
+    create: (data: Partial<Project>) =>
+      request<Project>("/api/v1/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project: data }),
+      }),
+    update: (id: number, data: Partial<Project>) =>
+      request<Project>(`/api/v1/projects/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project: data }),
-      });
-    },
+      }),
     delete: (id: number) =>
       request<void>(`/api/v1/projects/${id}`, { method: "DELETE" }),
   },

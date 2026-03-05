@@ -4,7 +4,7 @@ export interface Project {
   layers_json: string | null;
   editing_time: number;
   exports_count: number;
-  image_url: string | null;
+  thumbnail: string | null;
   created_at: string;
   updated_at: string;
 }

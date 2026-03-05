@@ -20,7 +20,7 @@ export function useProject(id: number | null) {
 export function useCreateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: FormData) => api.projects.create(data),
+    mutationFn: (data: Partial<Project>) => api.projects.create(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
   });
 }
@@ -28,7 +28,7 @@ export function useCreateProject() {
 export function useUpdateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Project> & { image?: File } }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<Project> }) =>
       api.projects.update(id, data),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["projects"] });

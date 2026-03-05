@@ -78,6 +78,21 @@ export function Canvas() {
       applyImage(fc, imageFileRef.current, canvasW, canvasH, () => {
         pushHistory(JSON.stringify(fc.toJSON(["data"])));
       });
+    } else {
+      const { imageUrl } = useEditorStore.getState();
+      if (imageUrl) {
+        fabric.Image.fromURL(imageUrl, (img) => {
+          const imgScale = Math.max(canvasW / img.width!, canvasH / img.height!);
+          img.set({
+            scaleX: imgScale, scaleY: imgScale,
+            left: (canvasW - img.width! * imgScale) / 2,
+            top: (canvasH - img.height! * imgScale) / 2,
+            selectable: false, evented: false,
+          });
+          fc.setBackgroundImage(img, fc.renderAll.bind(fc));
+          pushHistory(JSON.stringify(fc.toJSON(["data"])));
+        }, { crossOrigin: "anonymous" });
+      }
     }
 
     // Track selected object
@@ -166,6 +181,7 @@ export function Canvas() {
     (file: File) => {
       const fc = fabricRef.current;
       if (!fc) return;
+      useEditorStore.getState().setImageUrl(null);
       imageFileRef.current = file;
       applyImage(fc, file, canvasW, canvasH, () => {
         setImageLoaded(true);

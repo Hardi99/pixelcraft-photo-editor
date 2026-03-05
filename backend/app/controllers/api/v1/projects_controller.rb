@@ -14,7 +14,6 @@ module Api
 
       def create
         project = Project.new(project_params)
-        project.image.attach(params[:image]) if params[:image]
 
         if project.save
           render json: serialize(project), status: :created
@@ -24,8 +23,6 @@ module Api
       end
 
       def update
-        @project.image.attach(params[:image]) if params[:image]
-
         if @project.update(project_params)
           render json: serialize(@project)
         else
@@ -45,15 +42,13 @@ module Api
       end
 
       def project_params
-        params.require(:project).permit(:title, :layers_json, :editing_time, :exports_count)
+        params.require(:project).permit(:title, :layers_json, :editing_time, :exports_count, :thumbnail)
       rescue ActionController::ParameterMissing
         ActionController::Parameters.new.permit!
       end
 
       def serialize(project)
-        project.as_json.merge(
-          image_url: project.image.attached? ? url_for(project.image) : nil
-        )
+        project.as_json
       end
     end
   end

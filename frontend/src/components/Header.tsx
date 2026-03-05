@@ -21,6 +21,7 @@ export function Header() {
     canRedo,
     getEditingTime,
     imageLoaded,
+    setCurrentProject,
   } = useEditorStore();
 
   const { exportPNG } = useCanvas();
@@ -33,23 +34,21 @@ export function Header() {
     try {
       const layers = JSON.stringify(canvas.toJSON(["id", "name"]));
       const editingTime = getEditingTime();
-
-      const dataURL = canvas.toDataURL({ format: "png", multiplier: 0.5 });
-      const blob = await (await fetch(dataURL)).blob();
-      const imageFile = new File([blob], "thumbnail.png", { type: "image/png" });
+      const thumbnail = canvas.toDataURL({ format: "jpeg", quality: 0.7, multiplier: 0.5 });
 
       if (currentProject) {
         await updateProject.mutateAsync({
           id: currentProject.id,
-          data: { layers_json: layers, editing_time: editingTime, title: projectTitle, image: imageFile },
+          data: { layers_json: layers, editing_time: editingTime, title: projectTitle, thumbnail },
         });
       } else {
-        const fd = new FormData();
-        fd.append("project[title]", projectTitle);
-        fd.append("project[layers_json]", layers);
-        fd.append("project[editing_time]", String(editingTime));
-        fd.append("image", imageFile);
-        await createProject.mutateAsync(fd);
+        const project = await createProject.mutateAsync({
+          title: projectTitle,
+          layers_json: layers,
+          editing_time: editingTime,
+          thumbnail,
+        });
+        setCurrentProject(project);
       }
 
       api.track("save");
