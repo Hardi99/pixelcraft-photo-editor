@@ -96,7 +96,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     if (!canvas || historyIndex <= 0) return;
     const newIndex = historyIndex - 1;
     set({ historyIndex: newIndex });
-    canvas.loadFromJSON(history[newIndex], () => canvas.renderAll());
+    const vt = canvas.viewportTransform?.slice();
+    canvas.loadFromJSON(history[newIndex], () => {
+      if (vt) canvas.setViewportTransform(vt);
+      canvas.renderAll();
+    });
   },
 
   redo: () => {
@@ -104,7 +108,11 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     if (!canvas || historyIndex >= history.length - 1) return;
     const newIndex = historyIndex + 1;
     set({ historyIndex: newIndex });
-    canvas.loadFromJSON(history[newIndex], () => canvas.renderAll());
+    const vt = canvas.viewportTransform?.slice();
+    canvas.loadFromJSON(history[newIndex], () => {
+      if (vt) canvas.setViewportTransform(vt);
+      canvas.renderAll();
+    });
   },
 
   canUndo: () => get().historyIndex > 0,
