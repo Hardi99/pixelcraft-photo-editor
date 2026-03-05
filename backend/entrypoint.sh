@@ -9,6 +9,8 @@ if [ -z "$DATABASE_URL" ]; then
 else
   echo "=== Running database migrations ==="
   bundle exec rake db:migrate
+  echo "=== Seeding database if empty ==="
+  bundle exec rails runner "Event.count == 0 && load('db/seeds.rb')"
 fi
 
 echo "=== Starting Rails server ==="
