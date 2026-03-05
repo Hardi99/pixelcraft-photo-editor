@@ -36,23 +36,26 @@ export function Canvas() {
   // Apply an image file to a given fabric canvas instance
   const applyImage = useCallback(
     (fc: fabric.Canvas, file: File, cW: number, cH: number, onDone?: () => void) => {
-      const url = URL.createObjectURL(file);
-      fabric.Image.fromURL(url, (img) => {
-        // Cover: fill canvas, crop symmetrically
-        const imgScale = Math.max(cW / img.width!, cH / img.height!);
-        img.set({
-          scaleX: imgScale,
-          scaleY: imgScale,
-          left: (cW - img.width! * imgScale) / 2,
-          top: (cH - img.height! * imgScale) / 2,
-          selectable: false,
-          evented: false,
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target!.result as string;
+        useEditorStore.getState().setImageUrl(dataUrl);
+        fabric.Image.fromURL(dataUrl, (img) => {
+          const imgScale = Math.max(cW / img.width!, cH / img.height!);
+          img.set({
+            scaleX: imgScale,
+            scaleY: imgScale,
+            left: (cW - img.width! * imgScale) / 2,
+            top: (cH - img.height! * imgScale) / 2,
+            selectable: false,
+            evented: false,
+          });
+          fc.clear();
+          fc.setBackgroundImage(img, fc.renderAll.bind(fc));
+          onDone?.();
         });
-        fc.clear();
-        fc.setBackgroundImage(img, fc.renderAll.bind(fc));
-        URL.revokeObjectURL(url);
-        onDone?.();
-      });
+      };
+      reader.readAsDataURL(file);
     },
     []
   );
@@ -181,7 +184,6 @@ export function Canvas() {
     (file: File) => {
       const fc = fabricRef.current;
       if (!fc) return;
-      useEditorStore.getState().setImageUrl(null);
       imageFileRef.current = file;
       applyImage(fc, file, canvasW, canvasH, () => {
         setImageLoaded(true);
