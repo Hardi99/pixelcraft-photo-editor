@@ -53,7 +53,7 @@ export function Header() {
       }
 
       api.track("save");
-      toast.success("Projet sauvegardé !");
+      toast.success(currentProject ? "Modifications enregistrées !" : "Projet sauvegardé !");
     } catch {
       toast.error("Erreur lors de la sauvegarde");
     }
