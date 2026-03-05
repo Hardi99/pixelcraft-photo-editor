@@ -5,6 +5,7 @@ import { useEditorStore } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
 import { useUpdateProject, useCreateProject } from "@/hooks/useProjects";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export function Header() {
   const {
@@ -29,23 +30,33 @@ export function Header() {
   async function handleSave() {
     if (!canvas || !imageLoaded) return;
 
-    const layers = JSON.stringify(canvas.toJSON(["id", "name"]));
-    const editingTime = getEditingTime();
+    try {
+      const layers = JSON.stringify(canvas.toJSON(["id", "name"]));
+      const editingTime = getEditingTime();
 
-    if (currentProject) {
-      await updateProject.mutateAsync({
-        id: currentProject.id,
-        data: { layers_json: layers, editing_time: editingTime, title: projectTitle },
-      });
-    } else {
-      const fd = new FormData();
-      fd.append("project[title]", projectTitle);
-      fd.append("project[layers_json]", layers);
-      fd.append("project[editing_time]", String(editingTime));
-      await createProject.mutateAsync(fd);
+      const dataURL = canvas.toDataURL({ format: "png", multiplier: 0.5 });
+      const blob = await (await fetch(dataURL)).blob();
+      const imageFile = new File([blob], "thumbnail.png", { type: "image/png" });
+
+      if (currentProject) {
+        await updateProject.mutateAsync({
+          id: currentProject.id,
+          data: { layers_json: layers, editing_time: editingTime, title: projectTitle, image: imageFile },
+        });
+      } else {
+        const fd = new FormData();
+        fd.append("project[title]", projectTitle);
+        fd.append("project[layers_json]", layers);
+        fd.append("project[editing_time]", String(editingTime));
+        fd.append("image", imageFile);
+        await createProject.mutateAsync(fd);
+      }
+
+      api.track("save");
+      toast.success("Projet sauvegardé !");
+    } catch {
+      toast.error("Erreur lors de la sauvegarde");
     }
-
-    api.track("save");
   }
 
   return (

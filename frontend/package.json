@@ -23,6 +23,7 @@
     "react-dropzone": "^14.2.3",
     "recharts": "^2.10.3",
     "tailwind-merge": "^2.2.0",
+    "sonner": "^1.4.0",
     "zustand": "^4.4.7"
   },
   "devDependencies": {

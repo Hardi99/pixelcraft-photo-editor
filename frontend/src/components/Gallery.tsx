@@ -5,6 +5,7 @@ import { useProjects, useDeleteProject } from "@/hooks/useProjects";
 import { useEditorStore } from "@/stores/editorStore";
 import { formatDate, formatTime } from "@/lib/utils";
 import { fabric } from "fabric";
+import { toast } from "sonner";
 import type { Project } from "@/types";
 
 export function Gallery() {
@@ -107,7 +108,10 @@ export function Gallery() {
                   size="icon"
                   variant="destructive"
                   className="h-8 w-8"
-                  onClick={() => deleteProject.mutate(project.id)}
+                  onClick={() => deleteProject.mutate(project.id, {
+                    onSuccess: () => toast.success("Projet supprimé"),
+                    onError: () => toast.error("Erreur lors de la suppression"),
+                  })}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

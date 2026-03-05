@@ -4,6 +4,7 @@ import { useEditorStore } from "@/stores/editorStore";
 import { FILTER_PRESETS } from "@/lib/filters";
 import { downloadDataURL } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
 
 export function useCanvas() {
   const { canvas, pushHistory, setSelectedFilter, setAdjustments, adjustments } =
@@ -133,6 +134,7 @@ export function useCanvas() {
       if (!canvas) return;
       const dataURL = canvas.toDataURL({ format: "png", multiplier: 2 });
       downloadDataURL(dataURL, "pixelcraft-export.png");
+      toast.success("PNG exporté !");
 
       await api.track("export");
 

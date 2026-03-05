@@ -1,4 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 import { Header } from "@/components/Header";
 import { Canvas } from "@/components/Editor/Canvas";
 import { TextToolbar } from "@/components/Editor/TextToolbar";
@@ -27,7 +28,9 @@ export default function App() {
             <FilterPresets />
           </div>
 
-          <RightSidebar />
+          <div className="hidden lg:flex">
+            <RightSidebar />
+          </div>
         </div>
 
         <div className={`flex flex-1 overflow-hidden ${activeView !== "gallery" ? "hidden" : ""}`}>
@@ -39,6 +42,7 @@ export default function App() {
         </div>
 
         <AssistantBot />
+        <Toaster theme="dark" position="bottom-right" richColors />
       </div>
     </TooltipProvider>
   );
