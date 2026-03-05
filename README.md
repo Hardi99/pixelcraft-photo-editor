@@ -43,6 +43,7 @@ Ce projet démontre :
 ### Bonus (différenciation)
 - 🎨 **11 filtres Instagram** — Clarendon, Gingham, Moon, Lark, Reyes, Juno, Slumber, Crema, Ludwig, Aden, Nashville
 - ↩️ **Undo/Redo** multi-niveaux (50 états) + raccourcis Ctrl+Z / Ctrl+Y
+- 📋 **Copy/Paste** d'objets canvas (Ctrl+C / Ctrl+V, décalage automatique)
 - 😊 **Stickers/Emojis** — 12 emojis positionnables et redimensionnables
 - 💾 **Sauvegarde projet** — thumbnail base64 + layers JSON persistés en PostgreSQL
 - 🖼️ **Galerie** — miniatures, réouverture complète du projet, suppression, temps d'édition
@@ -224,6 +225,8 @@ pixelcraft-photo-editor/
 | `Delete` | Supprimer objet |
 | `Ctrl+Z` | Annuler         |
 | `Ctrl+Y` | Rétablir        |
+| `Ctrl+C` | Copier objet    |
+| `Ctrl+V` | Coller objet    |
 
 ---
 
@@ -248,7 +251,8 @@ pixelcraft-photo-editor/
 
 ### Technique
 - [ ] Tests backend (RSpec + FactoryBot)
-- [ ] Tests frontend (Vitest + Testing Library)
+- [x] Tests frontend (Vitest — store `editorStore` : 14 tests, 100% pass)
+- [ ] Tests composants (Testing Library)
 - [ ] CI/CD GitHub Actions
 - [ ] Rate limiting API (Rack::Attack)
 - [ ] PWA (installation mobile)

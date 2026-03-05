@@ -16,6 +16,8 @@ export function Canvas() {
   const fabricRef = useRef<fabric.Canvas | null>(null);
   // Persists the original File across ratio changes
   const imageFileRef = useRef<File | null>(null);
+  // Copy/paste clipboard
+  const clipboardRef = useRef<fabric.Object | null>(null);
 
   const {
     setCanvas,
@@ -132,6 +134,26 @@ export function Canvas() {
       if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
         e.preventDefault();
         useEditorStore.getState().redo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
+        const active = fc.getActiveObject();
+        if (active) active.clone((cloned: fabric.Object) => { clipboardRef.current = cloned; });
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
+        const obj = clipboardRef.current;
+        if (obj) {
+          obj.clone((cloned: fabric.Object) => {
+            cloned.set({
+              left: (cloned.left ?? 0) + 20,
+              top: (cloned.top ?? 0) + 20,
+              data: { id: Date.now().toString() },
+            });
+            fc.add(cloned);
+            fc.setActiveObject(cloned);
+            fc.renderAll();
+            pushHistory(JSON.stringify(fc.toJSON(["data"])));
+          });
+        }
       }
       if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
         const toolMap: Record<string, ActiveTool> = { v: "select", t: "text", s: "sticker", r: "crop" };
