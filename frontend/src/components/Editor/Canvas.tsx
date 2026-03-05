@@ -5,6 +5,10 @@ import { Upload, ImageIcon } from "lucide-react";
 import { useEditorStore, CANVAS_SIZES } from "@/stores/editorStore";
 import type { ActiveTool } from "@/types";
 import { api } from "@/lib/api";
+import { toast } from "sonner";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const MIN_DIMENSION = 50; // px
 
 export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -35,7 +39,7 @@ export function Canvas() {
 
   // Apply an image file to a given fabric canvas instance
   const applyImage = useCallback(
-    (fc: fabric.Canvas, file: File, cW: number, cH: number, onDone?: () => void) => {
+    (fc: fabric.Canvas, file: File, cW: number, cH: number, onDone?: (w: number, h: number) => void) => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target!.result as string;
@@ -52,7 +56,7 @@ export function Canvas() {
           });
           fc.clear();
           fc.setBackgroundImage(img, fc.renderAll.bind(fc));
-          onDone?.();
+          onDone?.(img.width!, img.height!);
         });
       };
       reader.readAsDataURL(file);
@@ -179,18 +183,49 @@ export function Canvas() {
     return () => { fc.off("mouse:down", handleCanvasClick); };
   }, [activeTool, pushHistory]);
 
-  // Initial image load (from dropzone)
-  const loadImageOnCanvas = useCallback(
+  // Validate file before loading
+  const validateAndLoad = useCallback(
     (file: File) => {
       const fc = fabricRef.current;
       if (!fc) return;
-      imageFileRef.current = file;
-      applyImage(fc, file, canvasW, canvasH, () => {
-        setImageLoaded(true);
-        startEditingTimer();
-        pushHistory(JSON.stringify(fc.toJSON(["data"])));
-        api.track("upload", { filename: file.name });
-      });
+
+      if (file.size === 0) {
+        toast.error("Fichier vide — impossible de charger l'image.");
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`Fichier trop lourd (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum : 10 MB.`);
+        return;
+      }
+
+      // Magic bytes check — verify actual file content matches declared type
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const arr = new Uint8Array(e.target!.result as ArrayBuffer).subarray(0, 4);
+        const header = Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
+        const isJpeg = header.startsWith("ffd8ff");
+        const isPng  = header === "89504e47";
+        if (!isJpeg && !isPng) {
+          toast.error("Format non supporté. Seuls PNG et JPG sont acceptés.");
+          return;
+        }
+
+        imageFileRef.current = file;
+        applyImage(fc, file, canvasW, canvasH, (w, h) => {
+          if (w < MIN_DIMENSION || h < MIN_DIMENSION) {
+            toast.error(`Image trop petite (${w}×${h}px). Minimum : ${MIN_DIMENSION}px.`);
+            fc.clear();
+            fc.setBackgroundColor("#18181b", fc.renderAll.bind(fc));
+            imageFileRef.current = null;
+            return;
+          }
+          setImageLoaded(true);
+          startEditingTimer();
+          pushHistory(JSON.stringify(fc.toJSON(["data"])));
+          api.track("upload", { filename: file.name });
+        });
+      };
+      reader.readAsArrayBuffer(file);
     },
     [canvasW, canvasH, applyImage, setImageLoaded, startEditingTimer, pushHistory]
   );
@@ -198,7 +233,22 @@ export function Canvas() {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: { "image/png": [], "image/jpeg": [] },
     multiple: false,
-    onDrop: ([file]) => file && loadImageOnCanvas(file),
+    maxSize: MAX_FILE_SIZE,
+    onDrop: (accepted, rejected) => {
+      if (rejected.length > 0) {
+        const code = rejected[0].errors[0]?.code;
+        if (code === "file-invalid-type")
+          toast.error("Format non supporté. Seuls PNG et JPG sont acceptés.");
+        else if (code === "file-too-large")
+          toast.error(`Fichier trop lourd. Maximum : 10 MB.`);
+        else if (code === "too-many-files")
+          toast.error("Déposez un seul fichier à la fois.");
+        else
+          toast.error("Fichier refusé.");
+        return;
+      }
+      if (accepted[0]) validateAndLoad(accepted[0]);
+    },
     noClick: imageLoaded,
     noDrag: imageLoaded,
   });
