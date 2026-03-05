@@ -28,7 +28,7 @@ export function useCreateProject() {
 export function useUpdateProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Project> }) =>
+    mutationFn: ({ id, data }: { id: number; data: Partial<Project> & { image?: File } }) =>
       api.projects.update(id, data),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["projects"] });
