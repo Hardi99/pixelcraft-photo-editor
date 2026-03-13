@@ -57,10 +57,12 @@ export function TextToolbar() {
   }
 
   const activeObj = canvas?.getActiveObject();
-  if (!activeObj || !(activeObj instanceof fabric.IText)) return null;
+  if (!activeObj || !(activeObj instanceof fabric.IText)) {
+    return <div className="h-12 shrink-0 border-b border-zinc-800 bg-zinc-900" />;
+  }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-4 py-2">
+    <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-4 py-2 shrink-0">
       {/* Font family */}
       <select
         value={props.fontFamily}
