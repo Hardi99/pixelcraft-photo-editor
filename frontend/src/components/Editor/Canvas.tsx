@@ -83,6 +83,9 @@ export function Canvas() {
     setCanvas(fc);
 
     // Re-apply image if one was already loaded (ratio change)
+    // Clear history: snapshots from the previous canvas size are incompatible
+    useEditorStore.setState({ history: [], historyIndex: -1 });
+
     if (imageFileRef.current) {
       applyImage(fc, imageFileRef.current, canvasW, canvasH, () => {
         pushHistory(JSON.stringify(fc.toJSON(["data"])));
