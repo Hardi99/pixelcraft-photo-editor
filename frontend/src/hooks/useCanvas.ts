@@ -95,7 +95,7 @@ export function useCanvas() {
       canvas.add(itext);
       canvas.setActiveObject(itext);
       canvas.renderAll();
-      pushHistory(JSON.stringify(canvas.toJSON()));
+      pushHistory(JSON.stringify(canvas.toJSON(["data"])));
       api.track("text");
     },
     [canvas, pushHistory]
@@ -113,7 +113,7 @@ export function useCanvas() {
       canvas.add(sticker);
       canvas.setActiveObject(sticker);
       canvas.renderAll();
-      pushHistory(JSON.stringify(canvas.toJSON()));
+      pushHistory(JSON.stringify(canvas.toJSON(["data"])));
       api.track("sticker", { emoji });
     },
     [canvas, pushHistory]
@@ -125,7 +125,7 @@ export function useCanvas() {
     if (obj) {
       canvas.remove(obj);
       canvas.renderAll();
-      pushHistory(JSON.stringify(canvas.toJSON()));
+      pushHistory(JSON.stringify(canvas.toJSON(["data"])));
     }
   }, [canvas, pushHistory]);
 
