@@ -188,15 +188,29 @@ test.describe("US8 — Mettre en page les éléments", () => {
   });
 });
 
-test("US8-6 · poignées réduites et curseur main", async ({ page }) => {
+const rotationOf = (page: Page) =>
+  page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().angle as number);
+
+/** Coin haut-droit de l'élément sélectionné, en coordonnées écran. */
+async function topRightCorner(page: Page) {
+  const canvas = (await page.locator(".upper-canvas").boundingBox())!;
+  const corner = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().oCoords.tr);
+  return { x: canvas.x + corner.x, y: canvas.y + corner.y };
+}
+
+test("US8-6 · quatre poignées d'angle et curseur main", async ({ page }) => {
   await addText(page, "Poignées", "title");
 
-  // Poignées visibles sur l'élément sélectionné
-  const controls = await page.evaluate(() => {
+  // Seules les poignées d'angle sont dessinées (les zones de rotation sont invisibles)
+  const drawn = await page.evaluate(() => {
     const obj = (window as any).__pixelcraft.store.getState().canvas.getActiveObject();
-    return Object.keys(obj.controls).filter((key) => obj.isControlVisible(key)).sort();
+    return Object.entries(obj.controls)
+      .filter(([key, control]: [string, any]) => obj.isControlVisible(key) && control.actionName !== "rotate")
+      .map(([key]) => key)
+      .sort();
   });
-  expect(controls).toEqual(["bl", "br", "mtr", "tl", "tr"]);
+  expect(drawn).toEqual(["bl", "br", "tl", "tr"]);
+  expect(await page.evaluate(() => "mtr" in (window as any).__pixelcraft.store.getState().canvas.getActiveObject().controls)).toBe(false);
 
   // Curseur : main au survol, main fermée pendant le déplacement
   const canvas = (await page.locator(".upper-canvas").boundingBox())!;
@@ -210,6 +224,57 @@ test("US8-6 · poignées réduites et curseur main", async ({ page }) => {
   await page.mouse.move(canvas.x + c.x * zoom + 30, canvas.y + c.y * zoom + 10, { steps: 4 });
   await expect.poll(cursor).toBe("grabbing");
   await page.mouse.up();
+
+  // Tirer un coin agrandit sans déformer : même échelle horizontale et verticale
+  const corner = await topRightCorner(page);
+  await page.mouse.move(corner.x, corner.y);
+  await page.mouse.down();
+  await page.mouse.move(corner.x + 40, corner.y - 20, { steps: 6 });
+  await page.mouse.up();
+  const scale = await page.evaluate(() => {
+    const o = (window as any).__pixelcraft.store.getState().canvas.getActiveObject();
+    return { x: o.scaleX, y: o.scaleY };
+  });
+  expect(scale.x).toBeGreaterThan(1);
+  expect(scale.x).toBeCloseTo(scale.y, 5);
+});
+
+/** Fait tourner l'élément sélectionné de `degrees` en glissant depuis l'extérieur du coin haut-droit. */
+async function rotateBy(page: Page, degrees: number) {
+  const corner = await topRightCorner(page);
+  const start = { x: corner.x + 14, y: corner.y - 14 };
+  const canvas = (await page.locator(".upper-canvas").boundingBox())!;
+  const pivotLocal = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().getCenterPoint());
+  const zoom = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getZoom());
+  const pivot = { x: canvas.x + pivotLocal.x * zoom, y: canvas.y + pivotLocal.y * zoom };
+  const radius = Math.hypot(start.x - pivot.x, start.y - pivot.y);
+  const from = Math.atan2(start.y - pivot.y, start.x - pivot.x);
+
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step++) {
+    const a = from + ((degrees * Math.PI) / 180) * (step / 12);
+    await page.mouse.move(pivot.x + radius * Math.cos(a), pivot.y + radius * Math.sin(a));
+  }
+  await page.mouse.up();
+}
+
+test("US8-7 · rotation depuis l'extérieur d'un coin, aimantée tous les 45°", async ({ page }) => {
+  await addText(page, "Rotation", "title");
+  const cursor = () => page.locator(".upper-canvas").evaluate((el) => getComputedStyle(el).cursor);
+
+  // Juste à l'extérieur du coin haut-droit : curseur de rotation (flèche dessinée en SVG)
+  const corner = await topRightCorner(page);
+  await page.mouse.move(corner.x + 14, corner.y - 14);
+  await expect.poll(cursor).toContain("url(");
+
+  // 30° : loin d'un multiple de 45°, l'angle suit le geste
+  await rotateBy(page, 30);
+  expect(Math.abs((await rotationOf(page)) - 30)).toBeLessThan(2);
+
+  // +13° (total 43°) : à moins de 5° de 45°, l'élément s'aimante
+  await rotateBy(page, 13);
+  expect(await rotationOf(page)).toBe(45);
 });
 
 test.describe("US9 — Utiliser PixelCraft sur l'écran adapté", () => {
