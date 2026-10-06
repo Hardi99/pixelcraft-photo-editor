@@ -1,4 +1,4 @@
-import type { AspectRatio } from "@/types";
+import type { AspectRatio, PreviewNetwork } from "@/types";
 
 /** Bande de l'image masquée ou rognée par Instagram, en fraction de la largeur ou de la hauteur. */
 export interface HiddenZone {
@@ -32,4 +32,30 @@ export function instagramHiddenZones(ratio: AspectRatio): HiddenZone[] {
     { edge: "left", size: side, label: "Rogné dans la grille du profil" },
     { edge: "right", size: side, label: "Rogné dans la grille du profil" },
   ];
+}
+
+// X affiche une image seule recadrée en 16:9 dans le fil. Le cadrage réel est
+// choisi par un algorithme (zone « intéressante ») : le repère est centré, indicatif.
+const X_TIMELINE_RATIO = 16 / 9;
+
+export function xHiddenZones(ratio: AspectRatio): HiddenZone[] {
+  const r = RATIO_VALUES[ratio];
+  const label = "Hors du cadrage 16:9 du fil X";
+  if (Math.abs(r - X_TIMELINE_RATIO) < 0.001) return [];
+  if (r < X_TIMELINE_RATIO) {
+    const band = (1 - r / X_TIMELINE_RATIO) / 2;
+    return [
+      { edge: "top", size: band, label },
+      { edge: "bottom", size: band, label },
+    ];
+  }
+  const band = (1 - X_TIMELINE_RATIO / r) / 2;
+  return [
+    { edge: "left", size: band, label },
+    { edge: "right", size: band, label },
+  ];
+}
+
+export function hiddenZones(network: PreviewNetwork, ratio: AspectRatio): HiddenZone[] {
+  return network === "x" ? xHiddenZones(ratio) : instagramHiddenZones(ratio);
 }

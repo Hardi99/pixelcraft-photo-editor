@@ -1,10 +1,12 @@
-import { MousePointer2, Type, Smile, Crop, ImagePlus, Smartphone } from "lucide-react";
+import { MousePointer2, Type, Smile, Crop, ImagePlus } from "lucide-react";
+import { InstagramLogoIcon, TwitterLogoIcon } from "@radix-ui/react-icons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditorStore } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
 import { trackEdit } from "@/lib/tracking";
+import { TEXT_PRESETS, type TextPresetId } from "@/lib/text";
 import { cn } from "@/lib/utils";
-import type { ActiveTool, AspectRatio } from "@/types";
+import type { ActiveTool, AspectRatio, PreviewNetwork } from "@/types";
 
 const TOOLS: { id: ActiveTool; icon: React.ElementType; label: string; shortcut: string }[] = [
   { id: "select", icon: MousePointer2, label: "Sélection", shortcut: "V" },
@@ -19,6 +21,11 @@ const RATIOS: { id: AspectRatio; label: string; w: number; h: number }[] = [
   { id: "3:4", label: "Grille", w: 3, h: 4 },
   { id: "16:9", label: "Paysage", w: 16, h: 9 },
   { id: "9:16", label: "Story", w: 9, h: 16 },
+];
+
+const PREVIEWS: { id: PreviewNetwork; label: string; icon: React.ElementType }[] = [
+  { id: "instagram", label: "Instagram", icon: InstagramLogoIcon },
+  { id: "x", label: "X (Twitter)", icon: TwitterLogoIcon },
 ];
 
 const STICKERS = ["😍", "🔥", "✨", "💯", "🎉", "❤️", "👑", "🌟", "🚀", "💎", "🎨", "📸"];
@@ -36,9 +43,9 @@ export function LeftSidebar() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
   const imageLoaded = useEditorStore((s) => s.imageLoaded);
-  const showSafeZones = useEditorStore((s) => s.showSafeZones);
-  const { setActiveTool, setAspectRatio, toggleSafeZones } = useEditorStore.getState();
-  const { addSticker } = useCanvas();
+  const previewNetwork = useEditorStore((s) => s.previewNetwork);
+  const { setActiveTool, setAspectRatio, setPreviewNetwork } = useEditorStore.getState();
+  const { addSticker, addText } = useCanvas();
 
   function startOver() {
     const { canvas, resetEditor } = useEditorStore.getState();
@@ -73,6 +80,32 @@ export function LeftSidebar() {
           </Tooltip>
         );
       })}
+
+      {activeTool === "text" && imageLoaded && (
+        <Popover title="Ajouter du texte">
+          <div className="flex flex-col gap-1.5">
+            {(Object.keys(TEXT_PRESETS) as TextPresetId[]).map((id) => {
+              const { label, options } = TEXT_PRESETS[id];
+              return (
+                <button
+                  key={id}
+                  onClick={() => void addText(id)}
+                  className="rounded-md border border-line px-3 py-2.5 text-left text-paper transition-colors hover:border-paper/30 hover:bg-accent"
+                  style={{
+                    fontFamily: `"${options.fontFamily}"`,
+                    fontWeight: options.fontWeight as string,
+                    fontSize: id === "title" ? 22 : id === "subtitle" ? 16 : 13,
+                    letterSpacing: id === "title" ? "0.02em" : undefined,
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-xs text-dim">Le texte apparaît au centre, prêt à être modifié.</p>
+        </Popover>
+      )}
 
       {activeTool === "sticker" && imageLoaded && (
         <Popover title="Ajouter un sticker">
@@ -125,25 +158,31 @@ export function LeftSidebar() {
       )}
 
       <div className="my-1 h-px w-6 bg-line" />
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <button
-            aria-label="Zones masquées par Instagram"
-            aria-pressed={showSafeZones}
-            disabled={!imageLoaded}
-            onClick={toggleSafeZones}
-            className={cn(
-              "flex h-10 w-10 items-center justify-center rounded-md transition-colors disabled:opacity-30",
-              showSafeZones ? "text-safelight hover:bg-accent" : "text-dim hover:bg-accent hover:text-paper"
-            )}
-          >
-            <Smartphone className="h-[18px] w-[18px]" />
-          </button>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          {showSafeZones ? "Masquer" : "Afficher"} les zones masquées par Instagram
-        </TooltipContent>
-      </Tooltip>
+      {/* Aperçu réseau (US7) : un seul à la fois, re-cliquer le désactive */}
+      {PREVIEWS.map(({ id, label, icon: Icon }) => {
+        const active = previewNetwork === id;
+        return (
+          <Tooltip key={id}>
+            <TooltipTrigger asChild>
+              <button
+                aria-label={`Aperçu ${label}`}
+                aria-pressed={active}
+                disabled={!imageLoaded}
+                onClick={() => setPreviewNetwork(active ? null : id)}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-md transition-colors disabled:opacity-30",
+                  active ? "bg-safelight/15 text-safelight" : "text-dim hover:bg-accent hover:text-paper"
+                )}
+              >
+                <Icon className="h-[18px] w-[18px]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {active ? `Masquer l'aperçu ${label}` : `Voir ce que ${label} masque ou rogne`}
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
 
       {imageLoaded && (
         <Tooltip>
