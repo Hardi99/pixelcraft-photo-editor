@@ -9,7 +9,9 @@
 ![Fabric.js](https://img.shields.io/badge/Fabric.js-5.3-FF6B35)
 ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white)
 
-Éditeur de photos type Instagram : on importe une photo PNG/JPG, on ajoute du texte, des stickers et des filtres, on sauvegarde le projet et on suit l'usage dans un tableau de bord KPI.
+Éditeur de photos pour préparer ses publications Instagram : on importe une photo PNG/JPG, on ajoute du texte, des stickers et des filtres, on exporte aux dimensions exactes d'Instagram, on sauvegarde le projet et on suit l'usage dans un tableau de bord.
+
+📋 **Ce que fait l'application, et comment c'est vérifié : [`docs/user-stories.md`](docs/user-stories.md).** Un epic, six user stories, des critères d'acceptation numérotés, chacun relié au test qui le vérifie.
 
 Le backend Rails porte les règles métier (propriété des projets, stockage des images, calcul des KPI) ; le frontend React gère l'édition sur le canvas.
 
@@ -17,9 +19,9 @@ Le backend Rails porte les règles métier (propriété des projets, stockage de
 
 ## ✨ Fonctionnalités
 
-**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), texte éditable sur le canvas (police, taille, couleur, ombre…), 12 stickers, 11 filtres Instagram + réglages manuels, 4 formats (1:1, 4:5, 16:9, 9:16), annuler/rétablir (50 états), copier/coller.
+**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), texte éditable sur le canvas (police, taille, couleur, ombre…), 12 stickers, 11 filtres Instagram + réglages manuels, 5 formats (1:1, 4:5, 3:4, 9:16, 16:9), repères des zones masquées par Instagram (haut et bas des stories, bords rognés dans la grille du profil), annuler/rétablir (50 états), copier/coller.
 
-**Export pour les réseaux sociaux** — chaque format sort aux dimensions attendues par les plateformes, quelle que soit la taille de l'écran : 1080 × 1080 (publication carrée), 1080 × 1350 (portrait), 1080 × 1920 (stories, Reels, TikTok), 1920 × 1080 (YouTube, X, LinkedIn). JPEG ou PNG, nom de fichier explicite (`mon-projet-story-1080x1920.jpg`), et partage direct vers les applis quand l'appareil le permet (Web Share API, surtout sur mobile).
+**Export pour les réseaux sociaux** — chaque format sort aux dimensions attendues par les plateformes, quelle que soit la taille de l'écran : 1080 × 1080 (publication carrée), 1080 × 1350 (portrait 4:5), 1080 × 1440 (portrait 3:4, entier dans la grille du profil), 1080 × 1920 (stories, Reels, TikTok), 1920 × 1080 (paysage, YouTube, X, LinkedIn). JPEG ou PNG, nom de fichier explicite (`mon-projet-story-1080x1920.jpg`), et partage direct vers les applis quand l'appareil le permet (Web Share API, surtout sur mobile).
 
 **Projets** — sauvegarde de la photo d'origine, des calques et des réglages ; réouverture à l'identique (format, filtre, calques) ; galerie paginée ; suppression avec confirmation.
 
@@ -142,11 +144,15 @@ La base est créée, migrée et remplie de données de démo au premier lancemen
 docker compose run --rm -e RAILS_ENV=test backend bash -c "unset DATABASE_URL; bundle exec rails db:create db:schema:load && bundle exec rspec"
 docker compose run --rm backend bundle exec rubocop
 
-# Frontend : TypeScript + Vitest
+# Frontend : TypeScript + Vitest (logique isolée)
 cd frontend && npx tsc --noEmit && npm test
+
+# Parcours complets (Playwright) : un vrai navigateur sur le vrai backend.
+# Le backend doit tourner (docker compose up). En local, Playwright utilise Chrome.
+cd frontend && npm run test:e2e
 ```
 
-La CI GitHub Actions (`.github/workflows/ci.yml`) lance les deux suites à chaque push.
+La CI GitHub Actions (`.github/workflows/ci.yml`) lance les trois suites à chaque push : un critère d'acceptation qui casse bloque la fusion.
 
 ### Variables d'environnement
 

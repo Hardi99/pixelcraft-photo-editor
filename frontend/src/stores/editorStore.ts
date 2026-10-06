@@ -10,6 +10,7 @@ type FabricCanvas = any;
 export const CANVAS_SIZES: Record<AspectRatio, { w: number; h: number }> = {
   "1:1": { w: 800, h: 800 },
   "4:5": { w: 800, h: 1000 },
+  "3:4": { w: 750, h: 1000 },
   "16:9": { w: 960, h: 540 },
   "9:16": { w: 540, h: 960 },
 };
@@ -38,6 +39,8 @@ interface EditorStore {
   pendingLayers: CanvasLayers | null;
   /** Incrémenté pour forcer la reconstruction du canvas (ouverture d'un projet). */
   sceneId: number;
+  /** Affiche les zones masquées ou rognées par Instagram (repères jamais exportés). */
+  showSafeZones: boolean;
 
   setCanvas: (canvas: FabricCanvas) => void;
   setImageLoaded: (loaded: boolean) => void;
@@ -50,6 +53,7 @@ interface EditorStore {
   setCurrentProject: (project: Project | null) => void;
   setProjectTitle: (title: string) => void;
   setImage: (url: string | null, file?: Blob | null) => void;
+  toggleSafeZones: () => void;
   openProject: (project: Project) => void;
   startEditingTimer: () => void;
   getEditingTime: () => number;
@@ -79,6 +83,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   imageFile: null,
   pendingLayers: null,
   sceneId: 0,
+  showSafeZones: true,
 
   setCanvas: (canvas) => set({ canvas }),
   setImageLoaded: (imageLoaded) => set({ imageLoaded }),
@@ -92,6 +97,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCurrentProject: (currentProject) => set({ currentProject }),
   setProjectTitle: (projectTitle) => set({ projectTitle }),
   setImage: (imageUrl, imageFile = null) => set({ imageUrl, imageFile }),
+  toggleSafeZones: () => set((s) => ({ showSafeZones: !s.showSafeZones })),
 
   openProject: (project) =>
     set((s) => ({

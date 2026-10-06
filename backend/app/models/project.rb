@@ -2,8 +2,8 @@ class Project < ApplicationRecord
   IMAGE_TYPES = %w[image/png image/jpeg].freeze
   MAX_IMAGE_SIZE = 10.megabytes
   MAX_LAYERS_SIZE = 1.megabyte
-  ASPECT_RATIOS = %w[1:1 4:5 16:9 9:16].freeze
-  EXPORT_TARGETS = %w[post portrait story landscape].freeze
+  ASPECT_RATIOS = %w[1:1 4:5 3:4 9:16 16:9].freeze
+  EXPORT_TARGETS = %w[post portrait tall story landscape].freeze
   EXPORT_FORMATS = %w[jpeg png].freeze
 
   belongs_to :visitor

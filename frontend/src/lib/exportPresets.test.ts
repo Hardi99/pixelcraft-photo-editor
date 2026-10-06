@@ -17,6 +17,7 @@ describe("EXPORT_TARGETS", () => {
   it("exporte en 1080 px de large pour les formats mobiles", () => {
     expect(EXPORT_TARGETS["1:1"]).toMatchObject({ width: 1080, height: 1080 });
     expect(EXPORT_TARGETS["4:5"]).toMatchObject({ width: 1080, height: 1350 });
+    expect(EXPORT_TARGETS["3:4"]).toMatchObject({ width: 1080, height: 1440 });
     expect(EXPORT_TARGETS["9:16"]).toMatchObject({ width: 1080, height: 1920 });
   });
 });

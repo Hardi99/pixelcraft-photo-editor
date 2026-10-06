@@ -1,4 +1,4 @@
-import { MousePointer2, Type, Smile, Crop, ImagePlus } from "lucide-react";
+import { MousePointer2, Type, Smile, Crop, ImagePlus, Smartphone } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditorStore } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
@@ -16,6 +16,7 @@ const TOOLS: { id: ActiveTool; icon: React.ElementType; label: string; shortcut:
 const RATIOS: { id: AspectRatio; label: string; w: number; h: number }[] = [
   { id: "1:1", label: "Carré", w: 1, h: 1 },
   { id: "4:5", label: "Portrait", w: 4, h: 5 },
+  { id: "3:4", label: "Grille", w: 3, h: 4 },
   { id: "16:9", label: "Paysage", w: 16, h: 9 },
   { id: "9:16", label: "Story", w: 9, h: 16 },
 ];
@@ -35,7 +36,8 @@ export function LeftSidebar() {
   const activeTool = useEditorStore((s) => s.activeTool);
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
   const imageLoaded = useEditorStore((s) => s.imageLoaded);
-  const { setActiveTool, setAspectRatio } = useEditorStore.getState();
+  const showSafeZones = useEditorStore((s) => s.showSafeZones);
+  const { setActiveTool, setAspectRatio, toggleSafeZones } = useEditorStore.getState();
   const { addSticker } = useCanvas();
 
   function startOver() {
@@ -121,6 +123,27 @@ export function LeftSidebar() {
           </div>
         </Popover>
       )}
+
+      <div className="my-1 h-px w-6 bg-line" />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            aria-label="Zones masquées par Instagram"
+            aria-pressed={showSafeZones}
+            disabled={!imageLoaded}
+            onClick={toggleSafeZones}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-md transition-colors disabled:opacity-30",
+              showSafeZones ? "text-safelight hover:bg-accent" : "text-dim hover:bg-accent hover:text-paper"
+            )}
+          >
+            <Smartphone className="h-[18px] w-[18px]" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {showSafeZones ? "Masquer" : "Afficher"} les zones masquées par Instagram
+        </TooltipContent>
+      </Tooltip>
 
       {imageLoaded && (
         <Tooltip>

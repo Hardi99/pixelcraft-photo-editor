@@ -6,6 +6,7 @@ import { useEditorStore, CANVAS_SIZES, DEFAULT_ADJUSTMENTS } from "@/stores/edit
 import { restoreLayers, serializeLayers, snapshot } from "@/lib/layers";
 import { buildFilters, isPngOrJpeg, loadBackground, readAsDataURL } from "@/lib/scene";
 import { trackEdit } from "@/lib/tracking";
+import { SafeZoneOverlay } from "@/components/Editor/SafeZoneOverlay";
 import type { ActiveTool, CanvasLayers } from "@/types";
 import { toast } from "sonner";
 
@@ -32,8 +33,10 @@ export function Canvas() {
 
   const getScale = useCallback(() => {
     if (!containerRef.current) return 1;
+    // Marges : 16 px de chaque côté, et une bande de 64 px en haut réservée à la
+    // barre de texte flottante, pour qu'elle ne recouvre jamais la photo.
     const maxW = containerRef.current.clientWidth - 32;
-    const maxH = containerRef.current.clientHeight - 32;
+    const maxH = containerRef.current.clientHeight - 64 - 16;
     return Math.min(maxW / canvasW, maxH / canvasH);
   }, [canvasW, canvasH]);
 
@@ -254,7 +257,7 @@ export function Canvas() {
   return (
     <div
       ref={containerRef}
-      className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-stage"
+      className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-stage pb-4 pt-16"
     >
       {!imageLoaded && (
         <div
@@ -280,8 +283,9 @@ export function Canvas() {
         </div>
       )}
 
-      <div className={!imageLoaded ? "pointer-events-none opacity-0" : "shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)]"}>
+      <div className={!imageLoaded ? "pointer-events-none opacity-0" : "relative shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)]"}>
         <canvas ref={canvasRef} />
+        <SafeZoneOverlay />
       </div>
     </div>
   );
