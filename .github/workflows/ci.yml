@@ -34,6 +34,14 @@ jobs:
       - run: bundle exec rubocop
       - run: bundle exec rails db:create db:schema:load
       - run: bundle exec rspec
+      # Les tests tournent en mode test : on vérifie aussi que l'app démarre en production
+      # (config/environments/production.rb n'est chargé nulle part ailleurs).
+      - name: Production boot check
+        env:
+          RAILS_ENV: production
+          SECRET_KEY_BASE: dummy-for-boot-check
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/photo_editor_test
+        run: bundle exec rails zeitwerk:check
 
   frontend:
     runs-on: ubuntu-latest
