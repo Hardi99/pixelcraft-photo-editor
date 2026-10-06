@@ -1,4 +1,4 @@
-import { Undo2, Redo2, Download, Save, LayoutGrid, BarChart2, Edit3 } from "lucide-react";
+import { Undo2, Redo2, Download, Save, LayoutGrid, BarChart3, SlidersHorizontal, Crop } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -7,10 +7,17 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { useSaveProject } from "@/hooks/useProjects";
 import { serializeLayers } from "@/lib/layers";
 import { canvasThumbnail } from "@/lib/scene";
-import type { ProjectInput } from "@/types";
+import { cn } from "@/lib/utils";
+import type { AppView, ProjectInput } from "@/types";
 import { toast } from "sonner";
 
-export function Header() {
+const VIEWS: { id: AppView; label: string; icon: React.ElementType }[] = [
+  { id: "editor", label: "Éditeur", icon: Crop },
+  { id: "gallery", label: "Mes projets", icon: LayoutGrid },
+  { id: "dashboard", label: "Statistiques", icon: BarChart3 },
+];
+
+export function Header({ onTogglePanel }: { onTogglePanel: () => void }) {
   const { projectTitle, setProjectTitle, activeView, setActiveView, undo, redo, imageLoaded } =
     useEditorStore(
       useShallow((s) => ({
@@ -28,6 +35,7 @@ export function Header() {
 
   const { exportPNG } = useCanvas();
   const saveProject = useSaveProject();
+  const inEditor = activeView === "editor";
 
   async function handleSave() {
     const s = useEditorStore.getState();
@@ -35,7 +43,7 @@ export function Header() {
 
     try {
       const input: ProjectInput = {
-        title: s.projectTitle,
+        title: s.projectTitle.trim() || "Sans titre",
         layers: serializeLayers(s.canvas),
         settings: { aspect_ratio: s.aspectRatio, filter: s.selectedFilter, adjustments: s.adjustments },
         thumbnail: await canvasThumbnail(s.canvas),
@@ -48,124 +56,102 @@ export function Header() {
       const project = await saveProject.mutateAsync({ id: s.currentProject?.id, input });
       s.setCurrentProject(project);
       s.startEditingTimer();
-      toast.success(s.currentProject ? "Modifications enregistrées !" : "Projet sauvegardé !");
+      toast.success(s.currentProject ? "Modifications enregistrées" : "Projet enregistré dans Mes projets");
     } catch {
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error("Le projet n'a pas pu être enregistré. Vérifiez votre connexion et réessayez.");
     }
   }
 
   return (
-    <header className="flex h-14 items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 z-20 shrink-0">
-      {/* Logo */}
-      <div className="flex items-center gap-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-          <Edit3 className="h-4 w-4 text-white" />
-        </div>
-        <span className="text-sm font-bold tracking-tight">PixelCraft</span>
+    <header className="z-20 flex h-14 shrink-0 items-center gap-2 border-b border-line bg-ink px-2 sm:gap-3 sm:px-4">
+      {/* Marque */}
+      <div className="flex shrink-0 items-center gap-2 pr-1">
+        <img src="/icon.svg" alt="" className="h-7 w-7" />
+        <span className="hidden text-[15px] font-extrabold tracking-tight md:inline">PixelCraft</span>
       </div>
 
-      {/* Project title (editable) */}
-      {activeView === "editor" && (
+      {/* Vues */}
+      <nav aria-label="Vues" className="flex h-full shrink-0 items-stretch">
+        {VIEWS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setActiveView(id)}
+            aria-current={activeView === id ? "page" : undefined}
+            aria-label={label}
+            className={cn(
+              "relative flex items-center gap-2 px-2.5 text-sm transition-colors sm:px-3",
+              activeView === id ? "text-paper" : "text-dim hover:text-paper",
+              activeView === id && "after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-safelight"
+            )}
+          >
+            <Icon className="h-4 w-4" />
+            <span className="hidden lg:inline">{label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* Titre du projet */}
+      {inEditor ? (
         <input
           value={projectTitle}
           onChange={(e) => setProjectTitle(e.target.value)}
-          className="w-48 bg-transparent text-center text-sm text-zinc-300 focus:outline-none focus:ring-1 focus:ring-primary rounded px-2 py-1"
+          aria-label="Nom du projet"
           placeholder="Nom du projet"
+          className="ml-1 min-w-0 flex-1 truncate rounded border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-paper placeholder:text-dim hover:border-line focus:border-line sm:max-w-xs"
         />
+      ) : (
+        <div className="flex-1" />
       )}
 
-      {/* Nav + actions */}
-      <div className="flex items-center gap-1">
-        {/* View tabs */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={activeView === "editor" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setActiveView("editor")}
-            >
-              <Edit3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Éditeur</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Éditeur de photos</TooltipContent>
-        </Tooltip>
+      {inEditor && (
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          <div className="hidden items-center sm:flex">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Annuler" disabled={!canUndo} onClick={undo}>
+                  <Undo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Annuler · Ctrl+Z</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label="Rétablir" disabled={!canRedo} onClick={redo}>
+                  <Redo2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rétablir · Ctrl+Y</TooltipContent>
+            </Tooltip>
+          </div>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={activeView === "gallery" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setActiveView("gallery")}
-            >
-              <LayoutGrid className="h-4 w-4" />
-              <span className="hidden sm:inline">Galerie</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Projets sauvegardés</TooltipContent>
-        </Tooltip>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            aria-label="Réglages de l'image"
+            disabled={!imageLoaded}
+            onClick={onTogglePanel}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={activeView === "dashboard" ? "secondary" : "ghost"}
-              size="sm"
-              onClick={() => setActiveView("dashboard")}
-            >
-              <BarChart2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Insights</span>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>KPI & Insights</TooltipContent>
-        </Tooltip>
+          <Button
+            variant="outline"
+            size="sm"
+            aria-label="Enregistrer"
+            disabled={!imageLoaded || saveProject.isPending}
+            onClick={handleSave}
+          >
+            <Save className="h-4 w-4" />
+            <span className="hidden md:inline">{saveProject.isPending ? "Enregistrement…" : "Enregistrer"}</span>
+          </Button>
 
-        <div className="mx-2 h-6 w-px bg-zinc-700" />
-
-        {/* Undo / Redo */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={!canUndo} onClick={undo}>
-              <Undo2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Annuler (Ctrl+Z)</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={!canRedo} onClick={redo}>
-              <Redo2 className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>Rétablir (Ctrl+Y)</TooltipContent>
-        </Tooltip>
-
-        <div className="mx-2 h-6 w-px bg-zinc-700" />
-
-        {/* Save */}
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!imageLoaded || saveProject.isPending}
-          onClick={handleSave}
-          className="border-zinc-700"
-        >
-          <Save className="h-4 w-4" />
-          <span className="hidden sm:inline">
-            {saveProject.isPending ? "Sauvegarde…" : "Sauvegarder"}
-          </span>
-        </Button>
-
-        {/* Export */}
-        <Button
-          size="sm"
-          disabled={!imageLoaded}
-          onClick={exportPNG}
-        >
-          <Download className="h-4 w-4" />
-          <span className="hidden sm:inline">Exporter PNG</span>
-        </Button>
-      </div>
+          <Button size="sm" aria-label="Exporter en PNG" disabled={!imageLoaded} onClick={exportPNG}>
+            <Download className="h-4 w-4" />
+            <span className="hidden sm:inline">Exporter</span>
+          </Button>
+        </div>
+      )}
     </header>
   );
 }

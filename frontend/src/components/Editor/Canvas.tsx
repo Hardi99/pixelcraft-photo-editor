@@ -129,7 +129,17 @@ export function Canvas() {
     };
     window.addEventListener("keydown", onKey);
 
+    // Adapte l'affichage à la place disponible (fenêtre, panneau ouvert…) sans toucher aux calques
+    const resizeObserver = new ResizeObserver(() => {
+      const next = getScale();
+      if (next <= 0 || Math.abs(next - fc.getZoom()) < 0.001) return;
+      fc.setDimensions({ width: canvasW * next, height: canvasH * next });
+      fc.setZoom(next);
+    });
+    if (containerRef.current) resizeObserver.observe(containerRef.current);
+
     return () => {
+      resizeObserver.disconnect();
       disposed = true;
       // Scène pas encore chargée (StrictMode, changement rapide) : on transmet
       // les calques prévus plutôt qu'un canvas encore vide.
@@ -244,37 +254,34 @@ export function Canvas() {
   return (
     <div
       ref={containerRef}
-      className="relative flex flex-1 items-center justify-center overflow-hidden bg-zinc-900"
+      className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden bg-stage"
     >
       {!imageLoaded && (
         <div
           {...getRootProps()}
-          style={{ zIndex: 20 }}
-          className={`absolute inset-8 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${
-            isDragActive ? "border-primary bg-primary/10" : "border-zinc-700 hover:border-zinc-500"
+          className={`absolute inset-4 z-20 flex cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed transition-colors sm:inset-10 ${
+            isDragActive ? "border-safelight bg-safelight/5" : "border-paper/20 hover:border-paper/40"
           }`}
         >
-          <input {...getInputProps()} />
-          <div className="flex flex-col items-center gap-4 text-zinc-400">
-            <div className="rounded-full bg-zinc-800 p-4">
-              {isDragActive ? (
-                <ImageIcon className="h-8 w-8 text-primary" />
-              ) : (
-                <Upload className="h-8 w-8" />
-              )}
-            </div>
-            <div className="text-center">
-              <p className="text-sm font-medium text-zinc-200">
-                {isDragActive ? "Déposez l'image ici" : "Glissez votre photo ici"}
+          <input {...getInputProps()} aria-label="Choisir une photo" />
+          <div className="flex max-w-xs flex-col items-center gap-5 px-6 text-center">
+            <ImageIcon className={`h-10 w-10 ${isDragActive ? "text-safelight" : "text-paper/40"}`} strokeWidth={1.25} />
+            <div>
+              <p className="text-xl font-semibold tracking-tight text-paper">
+                {isDragActive ? "Lâchez pour importer" : "Déposez une photo ici"}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">PNG, JPG · Cliquez pour parcourir</p>
+              <p className="mt-1.5 text-sm text-dim">PNG ou JPG, 10 Mo maximum.</p>
             </div>
+            <span className="inline-flex h-9 items-center gap-2 rounded-md bg-paper px-4 text-sm font-semibold text-ink">
+              <Upload className="h-4 w-4" />
+              Choisir une photo
+            </span>
           </div>
         </div>
       )}
 
-      <div className={!imageLoaded ? "pointer-events-none opacity-0" : ""}>
-        <canvas ref={canvasRef} className="shadow-2xl" />
+      <div className={!imageLoaded ? "pointer-events-none opacity-0" : "shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)]"}>
+        <canvas ref={canvasRef} />
       </div>
     </div>
   );

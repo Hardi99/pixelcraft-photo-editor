@@ -2,46 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Labo photo : l'interface est en graphite, la photo repose sur un gris neutre
+ * (aucune teinte ne fausse la lecture des couleurs) et l'ambre de la lampe
+ * inactinique est réservé à ce qui est actif ou à l'action principale.
+ */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 262 83% 58%;
-    --radius: 0.5rem;
-  }
+    --ink: 220 4% 8%;          /* #141516 en-tête, barres */
+    --panel: 220 4% 11.5%;     /* #1C1D1F panneaux */
+    --stage: 225 3% 23.5%;     /* #3A3B3E fond neutre sous la photo */
+    --line: 225 4% 17.5%;      /* #2B2C2F filets */
+    --paper: 40 9% 92%;        /* #ECEAE6 texte */
+    --dim: 40 3% 54%;          /* #8E8C88 texte secondaire */
+    --safelight: 38 91% 55%;   /* #F5A524 accent */
+    --film: 28 33% 8%;         /* #1A130D base du film */
+    --edge-print: 28 66% 55%;  /* #D98C3F impression du bord de film */
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 6%;
-    --card-foreground: 0 0% 98%;
-    --primary: 262 83% 58%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 18%;
-    --input: 240 3.7% 15.9%;
-    --ring: 262 83% 58%;
+    /* Jetons shadcn, alignés sur la palette */
+    --background: var(--ink);
+    --foreground: var(--paper);
+    --card: var(--panel);
+    --card-foreground: var(--paper);
+    --primary: var(--safelight);
+    --primary-foreground: 220 4% 8%;
+    --secondary: 225 4% 19%;
+    --secondary-foreground: var(--paper);
+    --muted: 225 4% 17.5%;
+    --muted-foreground: var(--dim);
+    --accent: 225 4% 19%;
+    --accent-foreground: var(--paper);
+    --destructive: 4 70% 52%;
+    --destructive-foreground: 40 9% 96%;
+    --border: var(--line);
+    --input: var(--line);
+    --ring: var(--safelight);
+    --radius: 0.375rem;
   }
 }
 
@@ -49,8 +45,15 @@
   * {
     @apply border-border;
   }
+  html {
+    color-scheme: dark;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-ink font-sans text-paper antialiased;
+    font-feature-settings: "ss01";
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-safelight ring-offset-1 ring-offset-ink;
   }
 }
 
@@ -59,25 +62,45 @@
   cursor: default !important;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-600 rounded-full;
+  background: hsl(var(--line));
+  border-radius: 3px;
 }
 
-/* Filter preview thumbnails */
-.filter-thumb {
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+/* Bande de film : base brune et perforations en haut et en bas, dessinées en CSS */
+.film-strip {
+  position: relative;
+  background-color: hsl(var(--film));
 }
-.filter-thumb:hover {
-  transform: scale(1.05);
+.film-strip::before,
+.film-strip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: repeating-linear-gradient(90deg, hsl(var(--paper) / 0.16) 0 8px, transparent 8px 18px);
+  pointer-events: none;
 }
-.filter-thumb.active {
-  @apply ring-2 ring-primary;
+.film-strip::before {
+  top: 5px;
+}
+.film-strip::after {
+  bottom: 5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

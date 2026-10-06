@@ -21,7 +21,15 @@ Le backend Rails porte les règles métier (propriété des projets, stockage de
 
 **Projets** — sauvegarde de la photo d'origine, des calques et des réglages ; réouverture à l'identique (format, filtre, calques) ; galerie paginée ; suppression avec confirmation.
 
-**Insights** — projets, exports, temps moyen d'édition, usage des outils, entonnoir Upload → Édition → Export **en visiteurs distincts**.
+**Statistiques** — projets, exports, temps moyen d'édition, usage des outils, parcours Import → Retouche → Export **en visiteurs distincts**, dernières actions.
+
+### Direction visuelle : le labo photo
+
+- **Gris neutre sous la photo** (`#3A3B3E`), comme dans Lightroom ou Capture One : aucune teinte d'interface ne fausse la lecture des couleurs.
+- **Un seul accent, l'ambre de la lampe inactinique** (`#F5A524`), réservé à ce qui est actif : outil sélectionné, filtre choisi, export.
+- **Les filtres sont une bande de film 35 mm** : chaque vue montre *votre* photo filtrée, avec le numéro de vue imprimé sur le bord.
+- **La galerie est une planche contact** : chaque tirage garde le format de sa publication (1:1, 4:5, 16:9, 9:16).
+- Une seule famille de caractères (Schibsted Grotesk), chiffres tabulaires pour les statistiques. Sur écran étroit, l'en-tête passe en icônes et les réglages s'ouvrent en panneau superposé.
 
 ---
 

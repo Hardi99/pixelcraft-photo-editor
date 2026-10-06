@@ -76,7 +76,7 @@ export function useCanvas() {
     const { canvas, currentProject, setCurrentProject } = editor();
     if (!canvas) return;
     downloadDataURL(canvas.toDataURL({ format: "png", multiplier: 2 }), "pixelcraft-export.png");
-    toast.success("PNG exporté !");
+    toast.success("Image exportée en PNG");
 
     // Projet sauvegardé : le serveur incrémente le compteur (atomique) et trace l'export.
     if (!currentProject) return trackEdit("export");

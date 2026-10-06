@@ -61,16 +61,21 @@ export function TextToolbar() {
 
   const activeObj = canvas?.getActiveObject();
   if (!activeObj || !(activeObj instanceof fabric.IText)) {
-    return <div className="h-12 shrink-0 border-b border-zinc-800 bg-zinc-900" />;
+    return null;
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-4 py-2 shrink-0">
+    <div
+      role="toolbar"
+      aria-label="Mise en forme du texte"
+      // Flotte au-dessus de la photo : sélectionner un texte ne décale pas le canvas
+      className="absolute inset-x-3 top-3 z-10 mx-auto flex w-fit flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg border border-line bg-panel px-2.5 py-1.5 shadow-2xl"
+    >
       {/* Font family */}
       <select
         value={props.fontFamily}
         onChange={(e) => applyProp("fontFamily", e.target.value)}
-        className="h-8 rounded bg-zinc-800 px-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary"
+        aria-label="Police" className="h-8 rounded-md border border-line bg-ink px-2 text-xs text-paper"
       >
         {FONTS.map((f) => (
           <option key={f} value={f} style={{ fontFamily: f }}>
@@ -81,33 +86,34 @@ export function TextToolbar() {
 
       {/* Font size */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500">Taille</span>
+        <span className="text-xs text-dim">Taille</span>
         <input
           type="number"
           min={8}
           max={200}
           value={props.fontSize}
           onChange={(e) => applyProp("fontSize", Number(e.target.value))}
-          className="h-8 w-16 rounded bg-zinc-800 px-2 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-primary"
+          aria-label="Taille" className="h-8 w-14 rounded-md border border-line bg-ink px-2 text-xs tabular-nums text-paper"
         />
       </div>
 
       {/* Color */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500">Couleur</span>
+        <span className="sr-only">Couleur</span>
         <input
           type="color"
           value={props.fill}
           onChange={(e) => applyProp("fill", e.target.value)}
-          className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
+          aria-label="Couleur" className="h-7 w-7 cursor-pointer rounded border border-line bg-transparent p-0.5"
         />
       </div>
 
       {/* Opacity */}
       <div className="flex items-center gap-2">
-        <span className="text-xs text-zinc-500">Opacité</span>
-        <div className="w-24">
+        <span className="text-xs text-dim">Opacité</span>
+        <div className="w-20">
           <Slider
+            aria-label="Opacité"
             min={0}
             max={1}
             step={0.01}
@@ -115,12 +121,14 @@ export function TextToolbar() {
             onValueChange={([v]) => applyProp("opacity", v)}
           />
         </div>
-        <span className="w-8 text-xs text-zinc-400">{Math.round(props.opacity * 100)}%</span>
+        <span className="w-9 text-xs tabular-nums text-dim">{Math.round(props.opacity * 100)} %</span>
       </div>
 
       {/* Bold / Italic */}
       <Button
         size="icon"
+        aria-label="Gras"
+        aria-pressed={props.fontWeight === "bold"}
         variant={props.fontWeight === "bold" ? "secondary" : "ghost"}
         className="h-8 w-8"
         onClick={() => applyProp("fontWeight", props.fontWeight === "bold" ? "normal" : "bold")}
@@ -129,6 +137,8 @@ export function TextToolbar() {
       </Button>
       <Button
         size="icon"
+        aria-label="Italique"
+        aria-pressed={props.fontStyle === "italic"}
         variant={props.fontStyle === "italic" ? "secondary" : "ghost"}
         className="h-8 w-8"
         onClick={() => applyProp("fontStyle", props.fontStyle === "italic" ? "normal" : "italic")}
@@ -143,6 +153,8 @@ export function TextToolbar() {
           <Button
             key={align}
             size="icon"
+            aria-label={{ left: "Aligner à gauche", center: "Centrer", right: "Aligner à droite" }[align]}
+            aria-pressed={props.textAlign === align}
             variant={props.textAlign === align ? "secondary" : "ghost"}
             className="h-8 w-8"
             onClick={() => applyProp("textAlign", align)}

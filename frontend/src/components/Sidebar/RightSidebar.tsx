@@ -1,127 +1,115 @@
-import { useEditorStore } from "@/stores/editorStore";
+import { Trash2 } from "lucide-react";
+import { useEditorStore, DEFAULT_ADJUSTMENTS } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
 import { Slider } from "@/components/ui/slider";
-import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { ImageAdjustments } from "@/types";
 
-interface AdjustRow {
-  label: string;
-  key: "brightness" | "contrast" | "saturation" | "blur";
-  min: number;
-  max: number;
-  step: number;
-}
-
-const ADJUSTMENTS: AdjustRow[] = [
-  { label: "Luminosité", key: "brightness", min: -1, max: 1, step: 0.01 },
-  { label: "Contraste", key: "contrast", min: -1, max: 1, step: 0.01 },
-  { label: "Saturation", key: "saturation", min: -1, max: 1, step: 0.01 },
-  { label: "Flou", key: "blur", min: 0, max: 1, step: 0.01 },
+const ADJUSTMENTS: { label: string; key: keyof ImageAdjustments; min: number }[] = [
+  { label: "Luminosité", key: "brightness", min: -1 },
+  { label: "Contraste", key: "contrast", min: -1 },
+  { label: "Saturation", key: "saturation", min: -1 },
+  { label: "Flou", key: "blur", min: 0 },
 ];
+
+const SHORTCUTS = [
+  ["V", "Sélection"],
+  ["T", "Texte"],
+  ["S", "Stickers"],
+  ["R", "Format"],
+  ["Suppr", "Supprimer le calque"],
+  ["Ctrl Z", "Annuler"],
+  ["Ctrl Y", "Rétablir"],
+  ["Ctrl C / V", "Copier, coller"],
+];
+
+function formatValue(value: number) {
+  const n = Math.round(value * 100);
+  return n > 0 ? `+${n}` : String(n);
+}
 
 export function RightSidebar() {
   const adjustments = useEditorStore((s) => s.adjustments);
   const imageLoaded = useEditorStore((s) => s.imageLoaded);
+  const hasSelection = useEditorStore((s) => s.selectedObjectId !== null);
   const { applyAdjustment, deleteSelected } = useCanvas();
-
-  if (!imageLoaded) {
-    return (
-      <aside className="flex w-64 flex-col gap-6 border-l border-zinc-800 bg-zinc-950 p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          Comment démarrer
-        </h3>
-        <ol className="space-y-4">
-          {[
-            { step: "1", label: "Choisir un ratio", sub: "1:1, 4:5, 16:9..." },
-            { step: "2", label: "Uploader une photo", sub: "Glisser-déposer ou clic" },
-            { step: "3", label: "Ajouter du texte", sub: "Outil T ou touche T" },
-            { step: "4", label: "Appliquer un filtre", sub: "Barre en bas" },
-            { step: "5", label: "Exporter en PNG", sub: "Bouton en haut à droite" },
-          ].map(({ step, label, sub }) => (
-            <li key={step} className="flex items-start gap-3">
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
-                {step}
-              </span>
-              <div>
-                <p className="text-xs font-medium text-zinc-300">{label}</p>
-                <p className="text-xs text-zinc-600">{sub}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </aside>
-    );
-  }
+  const touched = ADJUSTMENTS.some(({ key }) => adjustments[key] !== 0);
 
   return (
-    <aside className="flex w-64 flex-col gap-4 border-l border-zinc-800 bg-zinc-950 p-4 overflow-y-auto">
-      {/* Image adjustments */}
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          Réglages image
-        </h3>
-        <div className="flex flex-col gap-4">
-          {ADJUSTMENTS.map(({ label, key, min, max, step }) => (
-            <div key={key}>
-              <div className="mb-1.5 flex justify-between">
-                <span className="text-xs text-zinc-400">{label}</span>
-                <span className="text-xs tabular-nums text-zinc-500">
-                  {adjustments[key].toFixed(2)}
-                </span>
-              </div>
-              <Slider
-                min={min}
-                max={max}
-                step={step}
-                value={[adjustments[key]]}
-                onValueChange={([v]) => applyAdjustment(key, v)}
-              />
+    <aside aria-label="Réglages" className="flex h-full w-72 flex-col overflow-y-auto border-l border-line bg-panel">
+      {imageLoaded ? (
+        <>
+          <section className="border-b border-line p-4">
+            <div className="mb-4 flex items-baseline justify-between">
+              <h2 className="text-sm font-semibold">Réglages</h2>
+              {touched && (
+                <button
+                  className="text-xs text-dim underline-offset-2 hover:text-paper hover:underline"
+                  onClick={() => ADJUSTMENTS.forEach(({ key }) => applyAdjustment(key, DEFAULT_ADJUSTMENTS[key]))}
+                >
+                  Réinitialiser
+                </button>
+              )}
+            </div>
+            <div className="flex flex-col gap-5">
+              {ADJUSTMENTS.map(({ label, key, min }) => (
+                <div key={key}>
+                  <div className="mb-2 flex justify-between text-sm">
+                    <span id={`adj-${key}`} className="text-paper/80">{label}</span>
+                    <span className={`tabular-nums ${adjustments[key] !== 0 ? "text-safelight" : "text-dim"}`}>
+                      {formatValue(adjustments[key])}
+                    </span>
+                  </div>
+                  <Slider
+                    aria-labelledby={`adj-${key}`}
+                    centered={min < 0}
+                    min={min}
+                    max={1}
+                    step={0.01}
+                    value={[adjustments[key]]}
+                    onValueChange={([v]) => applyAdjustment(key, v)}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="border-b border-line p-4">
+            <h2 className="mb-1 text-sm font-semibold">Calque sélectionné</h2>
+            {hasSelection ? (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 w-full text-destructive hover:text-destructive"
+                onClick={deleteSelected}
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer le calque
+              </Button>
+            ) : (
+              <p className="text-sm text-dim">Cliquez sur un texte ou un sticker pour le modifier.</p>
+            )}
+          </section>
+        </>
+      ) : (
+        <section className="border-b border-line p-4">
+          <h2 className="mb-1 text-sm font-semibold">Réglages</h2>
+          <p className="text-sm text-dim">Ils apparaissent dès qu'une photo est chargée.</p>
+        </section>
+      )}
+
+      <section className="mt-auto p-4">
+        <h2 className="mb-3 text-sm font-semibold">Raccourcis clavier</h2>
+        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-xs">
+          {SHORTCUTS.map(([key, label]) => (
+            <div key={key} className="contents">
+              <dt>
+                <kbd className="rounded border border-line px-1.5 py-0.5 font-sans text-2xs text-paper/80">{key}</kbd>
+              </dt>
+              <dd className="self-center text-dim">{label}</dd>
             </div>
           ))}
-        </div>
-      </section>
-
-      <div className="h-px bg-zinc-800" />
-
-      {/* Selected object actions */}
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          Objet sélectionné
-        </h3>
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full border-zinc-700 text-destructive hover:bg-destructive/10 hover:text-destructive"
-          onClick={deleteSelected}
-        >
-          <Trash2 className="h-4 w-4" />
-          Supprimer
-        </Button>
-      </section>
-
-      <div className="h-px bg-zinc-800" />
-
-      {/* Quick tips */}
-      <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500">
-          Raccourcis
-        </h3>
-        <ul className="space-y-1 text-xs text-zinc-500">
-          {[
-            ["V", "Sélection"],
-            ["T", "Texte"],
-            ["S", "Sticker"],
-            ["R", "Ratio"],
-            ["Del", "Supprimer"],
-            ["Ctrl+Z", "Annuler"],
-            ["Ctrl+Y", "Rétablir"],
-          ].map(([key, label]) => (
-            <li key={key} className="flex justify-between">
-              <kbd className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono">{key}</kbd>
-              <span>{label}</span>
-            </li>
-          ))}
-        </ul>
+        </dl>
       </section>
     </aside>
   );
