@@ -145,7 +145,8 @@ export function editor<T>(page: Page, pick: (s: Snapshot) => T): Promise<T> {
         selectedFilter: s.selectedFilter,
         history: s.history,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        texts: (canvas?.getObjects() ?? []).filter((o: any) => o.type === "i-text").map((o: any) => ({
+        // Fabric 7 : le type sérialisé est "IText" (l'ancien "i-text" reste reconnu au chargement)
+        texts: (canvas?.getObjects() ?? []).filter((o: any) => o.isType("IText", "i-text")).map((o: any) => ({
           text: o.text,
           fill: o.fill,
           hasShadow: !!o.shadow,
@@ -160,7 +161,7 @@ export function editor<T>(page: Page, pick: (s: Snapshot) => T): Promise<T> {
           textBackgroundColor: o.textBackgroundColor ?? "",
           charSpacing: o.charSpacing ?? 0,
           locked: !!o.data?.locked,
-          box: o.getBoundingRect(true, true),
+          box: o.getBoundingRect(),
         })),
         page: { w: canvas ? canvas.getWidth() / canvas.getZoom() : 0, h: canvas ? canvas.getHeight() / canvas.getZoom() : 0 },
         background: bg

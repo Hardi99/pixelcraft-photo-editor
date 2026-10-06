@@ -6,7 +6,7 @@
 ![RSpec](https://img.shields.io/badge/RSpec-39_tests-6DB33F)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)
-![Fabric.js](https://img.shields.io/badge/Fabric.js-5.3-FF6B35)
+![Fabric.js](https://img.shields.io/badge/Fabric.js-7.4-FF6B35)
 ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white)
 
 Éditeur de photos pour préparer ses publications Instagram : on importe une photo PNG/JPG, on ajoute du texte, des stickers et des filtres, on exporte aux dimensions exactes d'Instagram, on sauvegarde le projet et on suit l'usage dans un tableau de bord.

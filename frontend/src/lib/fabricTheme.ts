@@ -1,8 +1,9 @@
-import { fabric } from "fabric";
+import { Control, InteractiveFabricObject, controlsUtils } from "fabric";
 
 /**
- * Apparence et poignées des éléments (US8-6, US8-7), réglées une fois sur le
- * prototype pour tous les textes et stickers :
+ * Apparence et poignées des éléments (US8-6, US8-7), réglées une fois pour tous
+ * les textes et stickers (Fabric 7 : valeurs par défaut via ownDefaults et
+ * createControls, plus de modification du prototype) :
  * - 4 poignées d'angle seulement : elles redimensionnent en gardant les
  *   proportions ; les poignées de côté étiraient le texte dans un seul sens ;
  * - pas de poignée de rotation : on tourne en saisissant l'élément juste à
@@ -25,11 +26,8 @@ function rotateCursor(degrees: number) {
 const ROTATE_OFFSET = 14;
 const ROTATE_ZONE = 22;
 
-type ControlsUtils = { rotationWithSnapping: fabric.Control["actionHandler"] };
-
 function rotateZone(x: number, y: number, degrees: number) {
-  const utils = (fabric as unknown as { controlsUtils: ControlsUtils }).controlsUtils;
-  return new fabric.Control({
+  return new Control({
     x,
     y,
     offsetX: Math.sign(x) * ROTATE_OFFSET,
@@ -37,7 +35,7 @@ function rotateZone(x: number, y: number, degrees: number) {
     sizeX: ROTATE_ZONE,
     sizeY: ROTATE_ZONE,
     actionName: "rotate",
-    actionHandler: utils.rotationWithSnapping,
+    actionHandler: controlsUtils.rotationWithSnapping,
     cursorStyleHandler: () => rotateCursor(degrees),
     render: () => {}, // zone invisible : seul le curseur la signale
   });
@@ -47,7 +45,8 @@ export function applyFabricTheme() {
   if (applied) return;
   applied = true;
 
-  fabric.Object.prototype.set({
+  InteractiveFabricObject.ownDefaults = {
+    ...InteractiveFabricObject.ownDefaults,
     transparentCorners: false,
     cornerStyle: "circle",
     cornerSize: 12,
@@ -59,18 +58,22 @@ export function applyFabricTheme() {
     // Aimantation de la rotation : à moins de 5° d'un multiple de 45°, l'angle s'y cale
     snapAngle: 45,
     snapThreshold: 5,
-  });
+  };
 
   // Les poignées d'angle sont déclarées en premier : là où les zones se chevauchent,
   // Fabric retient la première trouvée, donc le redimensionnement prime sur la rotation.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { mtr, ...controls } = fabric.Object.prototype.controls;
-  fabric.Object.prototype.controls = {
-    ...controls,
-    rotateTl: rotateZone(-0.5, -0.5, 0),
-    rotateTr: rotateZone(0.5, -0.5, 90),
-    rotateBr: rotateZone(0.5, 0.5, 180),
-    rotateBl: rotateZone(-0.5, 0.5, 270),
+  // Chaque objet reçoit son propre jeu (createControls est appelé à la construction).
+  InteractiveFabricObject.createControls = () => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { mtr, mt, mb, ml, mr, ...corners } = controlsUtils.createObjectDefaultControls();
+    return {
+      controls: {
+        ...corners,
+        rotateTl: rotateZone(-0.5, -0.5, 0),
+        rotateTr: rotateZone(0.5, -0.5, 90),
+        rotateBr: rotateZone(0.5, 0.5, 180),
+        rotateBl: rotateZone(-0.5, 0.5, 270),
+      },
+    };
   };
-  fabric.Object.prototype.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
 }

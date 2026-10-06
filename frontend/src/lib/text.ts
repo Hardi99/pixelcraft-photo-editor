@@ -1,4 +1,4 @@
-import { fabric } from "fabric";
+import { IText, Shadow, cache, type Canvas, type FabricObject, type ITextProps } from "fabric";
 
 /**
  * Polices proposées (Google Fonts, déclarées dans index.html). Le navigateur ne
@@ -24,7 +24,7 @@ export const FONTS: { family: string; mood: string }[] = [
 
 export type TextPresetId = "title" | "subtitle" | "body";
 
-export const TEXT_PRESETS: Record<TextPresetId, { label: string; text: string; options: Partial<fabric.ITextOptions> }> = {
+export const TEXT_PRESETS: Record<TextPresetId, { label: string; text: string; options: Partial<ITextProps> }> = {
   title: {
     label: "Ajouter un titre",
     text: "VOTRE TITRE",
@@ -43,15 +43,15 @@ export const TEXT_PRESETS: Record<TextPresetId, { label: string; text: string; o
 };
 
 /** Style commun : blanc avec une ombre douce, lisible sur fond clair comme sombre. */
-export const BASE_TEXT_STYLE: Partial<fabric.ITextOptions> = {
+export const BASE_TEXT_STYLE: Partial<ITextProps> = {
   fill: "#ffffff",
   textAlign: "center",
-  // Ancré au centre : en tapant, le texte s'élargit des deux côtés et reste centré
+  // Ancré au centre (défaut de Fabric 7) : en tapant, le texte s'élargit des deux côtés
   originX: "center",
   originY: "center",
   paintFirst: "stroke", // le contour passe derrière le remplissage, comme dans Canva
   strokeLineJoin: "round",
-  shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.45)", blur: 12, offsetX: 0, offsetY: 4 }),
+  shadow: new Shadow({ color: "rgba(0,0,0,0.45)", blur: 12, offsetX: 0, offsetY: 4 }),
 };
 
 export function ensureFontLoaded(family: string, weight: string | number = "400"): Promise<unknown> {
@@ -63,17 +63,17 @@ export function ensureFontLoaded(family: string, weight: string | number = "400"
  * Fabric mesure le texte au moment où il le dessine : si la police n'était pas
  * encore chargée, les dimensions sont fausses. On recharge et on remesure.
  */
-export async function refreshTextFonts(canvas: fabric.Canvas) {
-  const texts = canvas.getObjects().filter((o): o is fabric.IText => o instanceof fabric.IText);
+export async function refreshTextFonts(canvas: Canvas) {
+  const texts = canvas.getObjects().filter((o): o is IText => o instanceof IText);
   await Promise.all(texts.map((t) => ensureFontLoaded(t.fontFamily ?? "Poppins", t.fontWeight ?? "400")));
   for (const t of texts) {
-    fabric.util.clearFabricFontCache(t.fontFamily);
+    cache.clearFontCache(t.fontFamily);
     t.initDimensions();
     t.setCoords();
   }
   canvas.requestRenderAll();
 }
 
-export function isText(obj: fabric.Object | null | undefined): obj is fabric.IText {
-  return obj instanceof fabric.IText;
+export function isText(obj: FabricObject | null | undefined): obj is IText {
+  return obj instanceof IText;
 }

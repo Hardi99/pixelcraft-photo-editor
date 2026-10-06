@@ -141,14 +141,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const { canvas, history, historyIndex } = get();
     if (!canvas || historyIndex <= 0) return;
     set({ historyIndex: historyIndex - 1 });
-    restoreLayers(canvas, history[historyIndex - 1]);
+    void restoreLayers(canvas, history[historyIndex - 1]);
   },
 
   redo: () => {
     const { canvas, history, historyIndex } = get();
     if (!canvas || historyIndex >= history.length - 1) return;
     set({ historyIndex: historyIndex + 1 });
-    restoreLayers(canvas, history[historyIndex + 1]);
+    void restoreLayers(canvas, history[historyIndex + 1]);
   },
 
   canUndo: () => get().historyIndex > 0,

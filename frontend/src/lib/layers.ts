@@ -10,15 +10,17 @@ export interface LayerObject {
 }
 
 export interface LayeredCanvas {
-  toJSON(propertiesToInclude?: string[]): Record<string, unknown>;
-  getObjects(): LayerObject[];
-  loadFromJSON(json: unknown, callback: () => void): unknown;
-  backgroundImage?: unknown;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setBackgroundImage(image: any, callback: () => void): unknown;
-  viewportTransform?: number[];
-  setViewportTransform(vpt: number[]): unknown;
-  renderAll(): unknown;
+  toObject(propertiesToInclude?: any[]): Record<string, unknown>;
+  getObjects(): LayerObject[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  loadFromJSON(json: any): Promise<unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  backgroundImage?: any;
+  viewportTransform: number[] | readonly number[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setViewportTransform(vpt: any): unknown;
+  requestRenderAll(): unknown;
 }
 
 /**
@@ -28,7 +30,8 @@ export interface LayeredCanvas {
  */
 export function serializeLayers(canvas: LayeredCanvas): CanvasLayers {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { backgroundImage, ...layers } = canvas.toJSON(["data"]);
+  // toJSON() ne prend plus d'argument depuis Fabric 6 : toObject inclut le champ data
+  const { backgroundImage, ...layers } = canvas.toObject(["data"]);
   return layers;
 }
 
@@ -55,16 +58,14 @@ export function applyLocks(canvas: LayeredCanvas) {
 }
 
 /** Remplace les calques en conservant l'image de fond et le zoom courants. */
-export function restoreLayers(canvas: LayeredCanvas, layers: CanvasLayers | string, done?: () => void) {
+export async function restoreLayers(canvas: LayeredCanvas, layers: CanvasLayers | string) {
   const background = canvas.backgroundImage;
-  const viewport = canvas.viewportTransform?.slice();
+  const viewport = [...canvas.viewportTransform];
 
-  // loadFromJSON vide le canvas (fond compris) et réinitialise le zoom.
-  canvas.loadFromJSON(layers, () => {
-    if (background) canvas.setBackgroundImage(background, () => {});
-    if (viewport) canvas.setViewportTransform(viewport);
-    applyLocks(canvas);
-    canvas.renderAll();
-    done?.();
-  });
+  // loadFromJSON vide le canvas (fond compris) et peut réinitialiser le zoom.
+  await canvas.loadFromJSON(typeof layers === "string" ? JSON.parse(layers) : layers);
+  if (background) canvas.backgroundImage = background;
+  canvas.setViewportTransform(viewport);
+  applyLocks(canvas);
+  canvas.requestRenderAll();
 }

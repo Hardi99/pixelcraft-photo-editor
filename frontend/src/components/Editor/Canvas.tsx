@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { fabric } from "fabric";
+import { Canvas as FabricCanvas, IText, type FabricObject } from "fabric";
 import { useDropzone } from "react-dropzone";
 import { Upload, ImageIcon } from "lucide-react";
 import { useEditorStore, CANVAS_SIZES, DEFAULT_ADJUSTMENTS } from "@/stores/editorStore";
@@ -7,29 +7,32 @@ import { restoreLayers, serializeLayers, snapshot } from "@/lib/layers";
 import { buildFilters, isPngOrJpeg, loadBackground, readAsDataURL } from "@/lib/scene";
 import { trackEdit } from "@/lib/tracking";
 import { refreshTextFonts } from "@/lib/text";
-import { duplicateObject, isLocked, moveBy, pageBox } from "@/lib/objects";
+import { dataOf, duplicateObject, isLocked, moveBy, pageBox } from "@/lib/objects";
 import { snapToPage } from "@/lib/snapping";
 import { applyFabricTheme } from "@/lib/fabricTheme";
-
-applyFabricTheme();
 import { SafeZoneOverlay } from "@/components/Editor/SafeZoneOverlay";
 import type { ActiveTool, CanvasLayers } from "@/types";
 import { toast } from "sonner";
+
+applyFabricTheme();
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MIN_DIMENSION = 50; // px
 const SNAP_DISTANCE_PX = 8; // distance d'aimantation, en pixels à l'écran
 
 export function Canvas() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Hôte du canvas : un nouvel élément <canvas> est créé à chaque reconstruction de la
+  // scène. Depuis Fabric 6, dispose() est asynchrone et réinitialiser le même élément
+  // (StrictMode, changement de format) lève une erreur.
+  const hostRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const fabricRef = useRef<fabric.Canvas | null>(null);
+  const fabricRef = useRef<FabricCanvas | null>(null);
   // Calques du canvas précédent, reposés après un changement de format
   const carriedLayersRef = useRef<CanvasLayers | null>(null);
   // Vrai dès que le canvas affiche une image (scène chargée ou upload)
   const sceneReadyRef = useRef(false);
   // Copy/paste clipboard
-  const clipboardRef = useRef<fabric.Object | null>(null);
+  const clipboardRef = useRef<FabricObject | null>(null);
 
   const imageLoaded = useEditorStore((s) => s.imageLoaded);
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
@@ -48,10 +51,12 @@ export function Canvas() {
 
   // (Re)construit la scène : au montage, au changement de format, à l'ouverture d'un projet
   useEffect(() => {
-    if (!canvasRef.current) return;
+    if (!hostRef.current) return;
 
     const scale = getScale();
-    const fc = new fabric.Canvas(canvasRef.current, {
+    const element = document.createElement("canvas");
+    hostRef.current.appendChild(element);
+    const fc = new FabricCanvas(element, {
       width: canvasW * scale,
       height: canvasH * scale,
       backgroundColor: "#18181b",
@@ -77,20 +82,20 @@ export function Canvas() {
       loadBackground(fc, imageUrl, { w: canvasW, h: canvasH }, buildFilters(selectedFilter, adjustments))
         .then(() => {
           if (disposed) return;
-          const record = () => {
-            sceneReadyRef.current = true;
-            pushHistory(snapshot(fc));
-            void refreshTextFonts(fc); // un projet rouvert peut utiliser des polices pas encore chargées
-          };
-          if (layers) restoreLayers(fc, layers, record);
-          else record();
+          return layers ? restoreLayers(fc, layers) : undefined;
+        })
+        .then(() => {
+          if (disposed) return;
+          sceneReadyRef.current = true;
+          pushHistory(snapshot(fc));
+          void refreshTextFonts(fc); // un projet rouvert peut utiliser des polices pas encore chargées
         })
         .catch(() => toast.error("Impossible de charger l'image du projet."));
     }
 
     // Sélection : les panneaux (texte, mise en page) se relisent à chaque changement
-    const onSelection = (e: fabric.IEvent) => {
-      setSelectedObjectId(e.selected?.[0]?.data?.id ?? null);
+    const onSelection = () => {
+      setSelectedObjectId(dataOf(fc.getActiveObject()).id ?? null);
       useEditorStore.getState().bumpSelection();
     };
     fc.on("selection:created", onSelection);
@@ -99,18 +104,19 @@ export function Canvas() {
 
     // Repères magnétiques (US8-1) : dessinés sur le calque d'interaction de Fabric
     // (upper canvas), qui n'est jamais exporté.
-    // contextTop existe dans Fabric 5 mais n'est pas déclaré dans @types/fabric
-    const topContext = (fc as unknown as { contextTop: CanvasRenderingContext2D }).contextTop;
-    const clearGuides = () => fc.clearContext(topContext);
+    const clearGuides = () => fc.clearContext(fc.contextTop);
     fc.on("object:moving", (e) => {
       const obj = e.target;
       if (!obj) return;
+      // Fabric 7 ne recalcule la boîte englobante qu'au relâchement : sans ceci,
+      // l'aimantation mesurerait la position de l'étape précédente.
+      obj.setCoords();
       const zoom = fc.getZoom();
       const snap = snapToPage(pageBox(obj), { w: canvasW, h: canvasH }, SNAP_DISTANCE_PX / zoom);
       if (snap.dx || snap.dy) moveBy(obj, snap.dx, snap.dy);
 
       clearGuides();
-      const ctx = topContext;
+      const ctx = fc.contextTop;
       ctx.save();
       ctx.strokeStyle = "#F5A524";
       ctx.lineWidth = 1;
@@ -141,7 +147,7 @@ export function Canvas() {
     const onKey = (e: KeyboardEvent) => {
       const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName ?? "");
       const active = fc.getActiveObject();
-      const isEditingText = active?.type === "i-text" && (active as fabric.IText).isEditing;
+      const isEditingText = active instanceof IText && active.isEditing;
       if (typing || isEditingText) return;
 
       const mod = e.ctrlKey || e.metaKey;
@@ -191,7 +197,9 @@ export function Canvas() {
       // les calques prévus plutôt qu'un canvas encore vide.
       carriedLayersRef.current = sceneReadyRef.current ? serializeLayers(fc) : layers;
       window.removeEventListener("keydown", onKey);
-      fc.dispose();
+      // Masque tout de suite l'ancienne scène ; dispose() termine le nettoyage en asynchrone
+      fc.wrapperEl.style.display = "none";
+      void fc.dispose().then(() => element.remove());
     };
     // getScale dépend du format : la scène est reconstruite uniquement sur ces deux signaux
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -212,7 +220,8 @@ export function Canvas() {
         const dataUrl = await readAsDataURL(file);
         const img = await loadBackground(fc, dataUrl, { w: canvasW, h: canvasH });
         if (img.width! < MIN_DIMENSION || img.height! < MIN_DIMENSION) {
-          fc.setBackgroundImage(null as unknown as fabric.Image, fc.renderAll.bind(fc));
+          fc.backgroundImage = undefined;
+          fc.requestRenderAll();
           return toast.error(`Image trop petite (${img.width}×${img.height}px). Minimum : ${MIN_DIMENSION}px.`);
         }
 
@@ -292,7 +301,7 @@ export function Canvas() {
       )}
 
       <div className={!imageLoaded ? "pointer-events-none opacity-0" : "relative shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)]"}>
-        <canvas ref={canvasRef} />
+        <div ref={hostRef} />
         <SafeZoneOverlay />
       </div>
     </div>

@@ -80,6 +80,7 @@ L'epic est la vision : il ne se teste pas directement. Il est découpé en neuf 
 | US5-1 | Étant donné un projet enregistré, quand je le rouvre, alors le format, le filtre et chaque texte sont restaurés, chaque texte une seule fois. | e2e |
 | US5-2 | La photo rouverte a la même résolution qu'à l'import. | e2e |
 | US5-3 | Une autre personne, depuis un autre navigateur, ne voit pas mes projets. | e2e + RSpec |
+| US5-4 | Un projet enregistré avec une version précédente de l'éditeur (calques au format Fabric 5) se rouvre avec ses textes à la même position. | e2e |
 
 ## US6 — Exporter pour Instagram
 

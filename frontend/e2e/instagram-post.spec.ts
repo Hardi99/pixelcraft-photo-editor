@@ -207,6 +207,49 @@ test.describe("US5 — Enregistrer et reprendre un projet", () => {
   });
 });
 
+test("US5-4 · un projet enregistré au format Fabric 5 se rouvre à l'identique", async ({ page }) => {
+  await openEditor(page);
+  // Calques tels que les enregistrait la v1 (Fabric 5 : type "i-text", ancrage en haut à gauche)
+  const legacyLayers = {
+    version: "5.3.0",
+    background: "#18181b",
+    objects: [
+      {
+        type: "i-text", version: "5.3.0", originX: "left", originY: "top", left: 100, top: 120,
+        fill: "#ffffff", fontFamily: "Arial", fontSize: 40, text: "Ancien texte", styles: {}, data: { id: "legacy-1" },
+      },
+    ],
+  };
+  const png = makePng(800, 800).toString("base64");
+  // Même backend que l'application : VITE_API_URL en CI, le backend Docker local sinon
+  const apiBase = process.env.VITE_API_URL ?? "http://localhost:3001";
+  await page.evaluate(async ({ layers, png, base }) => {
+    // Le jeton visiteur est créé au premier appel : on passe par l'API comme le ferait l'application
+    let token = localStorage.getItem("pixelcraft.visitorToken");
+    if (!token) {
+      token = (await (await fetch(`${base}/api/v1/visitors`, { method: "POST" })).json()).token as string;
+      localStorage.setItem("pixelcraft.visitorToken", token);
+    }
+    const form = new FormData();
+    form.append("project[title]", "Projet v1");
+    form.append("project[image]", new Blob([Uint8Array.from(atob(png), (c) => c.charCodeAt(0))], { type: "image/png" }), "v1.png");
+    form.append("project[layers]", JSON.stringify(layers));
+    form.append("project[settings]", JSON.stringify({ aspect_ratio: "1:1" }));
+    const res = await fetch(`${base}/api/v1/projects`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+  }, { layers: legacyLayers, png, base: apiBase });
+
+  await page.reload();
+  await page.getByRole("button", { name: "Mes projets" }).click();
+  await page.getByRole("button", { name: "Ouvrir" }).first().click();
+
+  await expect.poll(() => editor(page, (s) => s.texts.map((t) => t.text))).toEqual(["Ancien texte"]);
+  const { box } = (await editor(page, (s) => s.texts))[0];
+  // Même position qu'en v1 : coin haut-gauche à (100, 120), à la marge de la boîte près
+  expect(Math.abs(box.left - 100)).toBeLessThan(2);
+  expect(Math.abs(box.top - 120)).toBeLessThan(2);
+});
+
 test.describe("US6 — Exporter pour Instagram", () => {
   const EXPECTED: Record<string, { width: number; height: number }> = {
     "1:1": { width: 1080, height: 1080 },

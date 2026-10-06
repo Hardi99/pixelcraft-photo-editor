@@ -15,7 +15,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import type { fabric } from "fabric";
+import type { FabricObject, IText, Shadow } from "fabric";
 import { Slider } from "@/components/ui/slider";
 import { useCanvas } from "@/hooks/useCanvas";
 import { isText } from "@/lib/text";
@@ -87,9 +87,9 @@ function toHex(color: unknown, fallback = "#000000") {
   return typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color) ? color : fallback;
 }
 
-function TextEffects({ text }: { text: fabric.IText }) {
+function TextEffects({ text }: { text: IText }) {
   const { updateText, previewText, commitChange, setTextShadow } = useCanvas();
-  const shadow = text.shadow as fabric.Shadow | undefined;
+  const shadow = text.shadow as Shadow | undefined;
   const shadowValue = { color: toHex(shadow?.color), blur: shadow?.blur ?? 12, distance: shadow?.offsetY ?? 4 };
   const strokeOn = !!text.stroke && (text.strokeWidth ?? 0) > 0;
 
@@ -155,7 +155,7 @@ const ALIGNS: [PageAlign, string, React.ElementType][] = [
   ["bottom", "Aligner en bas de la page", AlignVerticalJustifyEnd],
 ];
 
-function Layout({ obj }: { obj: fabric.Object }) {
+function Layout({ obj }: { obj: FabricObject }) {
   const { alignActive, arrangeActive, duplicateActive, toggleLockActive, deleteSelected } = useCanvas();
   const locked = isLocked(obj);
 
@@ -198,7 +198,7 @@ function Layout({ obj }: { obj: fabric.Object }) {
  * Panneau contextuel de l'élément sélectionné. Pour un texte, deux onglets
  * (comme Canva) : tout tient à l'écran sans faire défiler le panneau.
  */
-export function ObjectPanel({ obj }: { obj: fabric.Object }) {
+export function ObjectPanel({ obj }: { obj: FabricObject }) {
   const [tab, setTab] = useState<"effects" | "position">("effects");
   const withEffects = isText(obj) && !isLocked(obj);
   const current = withEffects ? tab : "position";

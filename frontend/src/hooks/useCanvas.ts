@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { fabric } from "fabric";
+import { FabricText, IText, Shadow, cache, type FabricObject, type ITextProps } from "fabric";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEditorStore, CANVAS_SIZES } from "@/stores/editorStore";
 import { api } from "@/lib/api";
@@ -18,6 +18,9 @@ import { toast } from "sonner";
 // les composants qui utilisent ce hook ne re-rendent pas à chaque modification.
 const editor = () => useEditorStore.getState();
 
+/** Propriétés modifiables d'un texte ; textBackgroundColor existe sur IText mais pas dans ITextProps. */
+type TextChanges = Partial<ITextProps> & { textBackgroundColor?: string };
+
 /** Fin commune de toute modification : historique + rafraîchissement des panneaux. */
 function commit() {
   const { canvas, pushHistory, bumpSelection } = editor();
@@ -27,12 +30,12 @@ function commit() {
   bumpSelection();
 }
 
-function activeObject(): fabric.Object | null {
+function activeObject(): FabricObject | null {
   return editor().canvas?.getActiveObject() ?? null;
 }
 
 /** Ajoute un élément centré sur la page et le sélectionne. */
-function addCentered(obj: fabric.Object) {
+function addCentered(obj: FabricObject) {
   const { canvas, aspectRatio } = editor();
   if (!canvas) return;
   const page = CANVAS_SIZES[aspectRatio];
@@ -49,10 +52,10 @@ function addCentered(obj: fabric.Object) {
 async function addText(presetId: TextPresetId) {
   const preset = TEXT_PRESETS[presetId];
   await ensureFontLoaded(preset.options.fontFamily!, preset.options.fontWeight);
-  const text = new fabric.IText(preset.text, {
+  const text = new IText(preset.text, {
     ...BASE_TEXT_STYLE,
     // Une ombre par texte : un objet Shadow partagé serait modifié pour tous
-    shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.45)", blur: 12, offsetX: 0, offsetY: 4 }),
+    shadow: new Shadow({ color: "rgba(0,0,0,0.45)", blur: 12, offsetX: 0, offsetY: 4 }),
     ...preset.options,
   });
   addCentered(text);
@@ -63,12 +66,12 @@ async function addText(presetId: TextPresetId) {
 }
 
 /** Modifie le texte sélectionné (police, taille, couleur, effets…). */
-async function updateText(props: Partial<fabric.IText>) {
+async function updateText(props: TextChanges) {
   const obj = activeObject();
   if (!isText(obj) || isLocked(obj)) return;
   if (props.fontFamily) {
     await ensureFontLoaded(props.fontFamily, props.fontWeight ?? obj.fontWeight);
-    fabric.util.clearFabricFontCache(props.fontFamily);
+    cache.clearFontCache(props.fontFamily);
   }
   obj.set(props);
   obj.initDimensions();
@@ -77,7 +80,7 @@ async function updateText(props: Partial<fabric.IText>) {
 }
 
 /** Aperçu en direct pendant un glissement de curseur, sans entrée d'historique. */
-function previewText(props: Partial<fabric.IText>) {
+function previewText(props: TextChanges) {
   const obj = activeObject();
   if (!isText(obj) || isLocked(obj)) return;
   obj.set(props);
@@ -90,7 +93,7 @@ function previewText(props: Partial<fabric.IText>) {
 function setTextShadow(shadow: { color: string; blur: number; distance: number } | null, { live = false } = {}) {
   const obj = activeObject();
   if (!isText(obj) || isLocked(obj)) return;
-  obj.set({ shadow: shadow ? new fabric.Shadow({ color: shadow.color, blur: shadow.blur, offsetX: 0, offsetY: shadow.distance }) : undefined });
+  obj.set({ shadow: shadow ? new Shadow({ color: shadow.color, blur: shadow.blur, offsetX: 0, offsetY: shadow.distance }) : undefined });
   if (live) {
     editor().canvas?.requestRenderAll();
     editor().bumpSelection();
@@ -125,10 +128,10 @@ function arrangeActive(where: "front" | "forward" | "backward" | "back") {
   const { canvas } = editor();
   const obj = activeObject();
   if (!canvas || !obj) return;
-  if (where === "front") canvas.bringToFront(obj);
-  if (where === "forward") canvas.bringForward(obj);
-  if (where === "backward") canvas.sendBackwards(obj);
-  if (where === "back") canvas.sendToBack(obj); // la photo est un fond, elle reste dessous
+  if (where === "front") canvas.bringObjectToFront(obj);
+  if (where === "forward") canvas.bringObjectForward(obj);
+  if (where === "backward") canvas.sendObjectBackwards(obj);
+  if (where === "back") canvas.sendObjectToBack(obj); // la photo est un fond, elle reste dessous
   commit();
 }
 
@@ -166,7 +169,7 @@ export function useCanvas() {
   }, []);
 
   const addSticker = useCallback((emoji: string) => {
-    addCentered(new fabric.Text(emoji, { fontSize: 120 }));
+    addCentered(new FabricText(emoji, { fontSize: 120 }));
     trackEdit("sticker", { emoji });
   }, []);
 
