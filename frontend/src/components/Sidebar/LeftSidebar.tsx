@@ -48,7 +48,7 @@ export function LeftSidebar() {
   }
 
   return (
-    <aside aria-label="Outils" className="relative z-20 flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-panel py-3">
+    <aside aria-label="Outils" className="relative z-30 flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-panel py-3">
       {TOOLS.map(({ id, icon: Icon, label, shortcut }) => {
         const active = activeTool === id;
         return (

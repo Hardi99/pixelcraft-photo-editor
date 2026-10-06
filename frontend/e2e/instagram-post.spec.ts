@@ -65,6 +65,24 @@ test.describe("US2 — Choisir le format de publication", () => {
   });
 });
 
+test("US2-3 · sans photo, choisir un format change le format au lieu d'ouvrir l'import", async ({ page }) => {
+  await openEditor(page);
+  // Régression : la zone de dépôt passait au-dessus du menu et interceptait le clic
+  let chooserOpened = false;
+  page.on("filechooser", () => (chooserOpened = true));
+
+  await page.getByRole("button", { name: "Format", exact: true }).click();
+  await page.getByRole("button", { name: /^9:16 / }).click();
+
+  await expect.poll(() => editor(page, (s) => s.aspectRatio)).toBe("9:16");
+  expect(chooserOpened).toBe(false);
+
+  // Et l'import fonctionne ensuite, dans le format choisi
+  await importPhoto(page);
+  expect(await editor(page, (s) => s.aspectRatio)).toBe("9:16");
+  expect(await editor(page, (s) => s.background?.coversCanvas)).toBe(true);
+});
+
 test.describe("US3 — Écrire un texte lisible", () => {
   test.beforeEach(async ({ page }) => {
     await openEditor(page);
