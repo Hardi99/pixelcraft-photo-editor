@@ -26,7 +26,7 @@ export function SafeZoneOverlay() {
         <div
           key={zone.edge}
           data-edge={zone.edge}
-          className="absolute flex items-center justify-center border-dashed border-safelight/70 bg-[repeating-linear-gradient(135deg,hsl(var(--ink)/0.35)_0_6px,transparent_6px_12px)]"
+          className="absolute flex items-center justify-center border-dashed border-safelight/70 bg-[repeating-linear-gradient(135deg,hsl(var(--safelight)/0.45)_0_6px,transparent_6px_12px)]"
           style={{
             ...POSITION[zone.edge](`${zone.size * 100}%`),
             [`border${zone.edge === "top" ? "Bottom" : zone.edge === "bottom" ? "Top" : zone.edge === "left" ? "Right" : "Left"}Width`]: 1,

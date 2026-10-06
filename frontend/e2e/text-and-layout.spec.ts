@@ -226,8 +226,17 @@ test("US8-6 · quatre poignées d'angle et curseur main", async ({ page }) => {
   await expect.poll(cursor).toBe("grabbing");
   await page.mouse.up();
 
-  // Tirer un coin agrandit sans déformer : même échelle horizontale et verticale
+  // Sur un coin (et jusqu'à 5 px autour) : flèche diagonale, le redimensionnement prime sur la rotation
   const corner = await topRightCorner(page);
+  for (const [dx, dy] of [[0, 0], [4, -4], [-4, 4]]) {
+    await page.mouse.move(corner.x + dx, corner.y + dy);
+    await expect.poll(cursor).toBe("nesw-resize");
+  }
+  const bottomRight = await handle(page, "br");
+  await page.mouse.move(bottomRight.x, bottomRight.y);
+  await expect.poll(cursor).toBe("nwse-resize");
+
+  // Tirer un coin agrandit sans déformer : même échelle horizontale et verticale
   await page.mouse.move(corner.x, corner.y);
   await page.mouse.down();
   await page.mouse.move(corner.x + 40, corner.y - 20, { steps: 6 });

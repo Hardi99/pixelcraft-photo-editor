@@ -116,7 +116,7 @@ Dimensions vérifiées en octobre 2026 dans plusieurs guides de référence (Ins
 | US7-1 | Deux boutons, avec le logo de chaque réseau, activent l'aperçu Instagram ou l'aperçu X ; un seul aperçu à la fois. | e2e |
 | US7-2 | Aperçu Instagram : en story, le haut (≈ 14 %) et le bas (≈ 20 %) recouverts par l'interface sont signalés ; en publication, les bords rognés par la grille du profil (affichée en 3:4). | e2e + unitaire |
 | US7-3 | Aperçu X : la partie hors du cadrage 16:9 du fil est signalée (X recadre lui-même les images non 16:9 ; le repère montre un cadrage centré, à titre indicatif). | e2e + unitaire |
-| US7-4 | Les repères ne font jamais partie de l'image exportée. | e2e |
+| US7-4 | Les repères, hachurés en jaune pour rester visibles sur toute photo, ne font jamais partie de l'image exportée. | e2e |
 
 ## US8 — Mettre en page les éléments
 
@@ -131,7 +131,7 @@ Dimensions vérifiées en octobre 2026 dans plusieurs guides de référence (Ins
 | US8-3 | Je passe un élément au premier plan ou à l'arrière-plan des autres éléments (la photo reste toujours dessous). | e2e |
 | US8-4 | Je duplique un élément (bouton ou Ctrl+D) ; la copie apparaît décalée et sélectionnée. | e2e |
 | US8-5 | Un élément verrouillé ne peut être ni déplacé, ni redimensionné, ni modifié, ni supprimé, jusqu'à ce que je le déverrouille ; le verrou est conservé à l'enregistrement. | e2e |
-| US8-6 | Un élément sélectionné n'affiche que quatre poignées d'angle (redimensionnement proportionnel, sans déformer le texte) ; au survol, le curseur devient une main, qui se ferme pendant le déplacement. | e2e |
+| US8-6 | Un élément sélectionné n'affiche que quatre poignées d'angle (redimensionnement proportionnel, sans déformer le texte) ; sur un coin, le curseur est une flèche de redimensionnement diagonale ; au survol de l'élément, le curseur devient une main, qui se ferme pendant le déplacement. | e2e |
 | US8-7 | Juste à l'extérieur d'un coin, le curseur devient une flèche de rotation : en glissant, l'élément tourne autour de son centre, et s'aimante tous les 45° quand on s'en approche. | e2e |
 | US8-8 | En maintenant Maj ou Alt Gr pendant la rotation, l'élément se cale par paliers de 15° (0°, 15°, 30°… 90°), pour le remettre droit facilement. | e2e |
 

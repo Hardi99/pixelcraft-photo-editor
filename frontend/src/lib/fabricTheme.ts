@@ -11,16 +11,38 @@ import { Control, InteractiveFabricObject, controlsUtils, type TPointerEvent, ty
  */
 let applied = false;
 
-/** Flèche courbe à double pointe, contour sombre pour rester visible sur toute photo. */
+/**
+ * Flèche courbe à double pointe, dessinée comme les curseurs système (corps blanc,
+ * contour noir fin). Le tracé remplit son cadre (≈ 18 px dans une image de 24 px),
+ * comme la main de saisie. Déclarée en 2x via image-set : comme les curseurs
+ * système, elle grandit avec le zoom de l'écran (125 %, 150 %…).
+ */
+const CURSOR_SIZE = 24;
+
 function rotateCursor(degrees: number) {
-  // 18 px affichés (dessin en 24 unités) : la taille des curseurs système à 100 %
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24">
+  // Arc du coin bas-gauche au coin haut-droit, bombé vers l'extérieur, et deux pointes
+  const arrow = `<path d="M5 18 A13 13 0 0 1 18 5"/><path d="M14 2.5 18 5 14.5 9"/><path d="M2.5 14 5 18 9 14.5"/>`;
+  const svg = (px: number) => `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24">
     <g transform="rotate(${degrees} 12 12)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <g stroke="#141516" stroke-width="4.5"><path d="M6 15 A8 8 0 0 1 15 6"/><path d="M12.5 3.5 15 6 12.5 8.5"/><path d="M3.5 12.5 6 15 8.5 12.5"/></g>
-      <g stroke="#ffffff" stroke-width="2"><path d="M6 15 A8 8 0 0 1 15 6"/><path d="M12.5 3.5 15 6 12.5 8.5"/><path d="M3.5 12.5 6 15 8.5 12.5"/></g>
+      <g stroke="#000000" stroke-width="3.4">${arrow}</g>
+      <g stroke="#ffffff" stroke-width="1.5">${arrow}</g>
     </g>
   </svg>`;
-  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") 9 9, crosshair`;
+  const url = (px: number) => `url("data:image/svg+xml,${encodeURIComponent(svg(px))}")`;
+  const hotspot = CURSOR_SIZE / 2;
+  return `-webkit-image-set(${url(CURSOR_SIZE)} 1x, ${url(CURSOR_SIZE * 2)} 2x) ${hotspot} ${hotspot}, ${url(CURSOR_SIZE)} ${hotspot} ${hotspot}, crosshair`;
+}
+
+/**
+ * Flèche de redimensionnement diagonale selon le coin et la rotation de l'élément.
+ * (Le choix automatique de Fabric renvoyait une flèche horizontale sur nos coins.)
+ */
+const RESIZE_CURSORS = ["ew-resize", "nwse-resize", "ns-resize", "nesw-resize"];
+
+function diagonalCursor(control: Control, angle: number) {
+  const direction = (Math.atan2(control.y, control.x) * 180) / Math.PI + angle;
+  const index = Math.round((((direction % 180) + 180) % 180) / 45) % 4;
+  return RESIZE_CURSORS[index];
 }
 
 // Pas de rotation quand on maintient Maj ou Alt Gr (US8-8)
@@ -88,19 +110,22 @@ export function applyFabricTheme() {
     snapThreshold: 5,
   };
 
-  // Les poignées d'angle sont déclarées en premier : là où les zones se chevauchent,
-  // Fabric retient la première trouvée, donc le redimensionnement prime sur la rotation.
-  // Chaque objet reçoit son propre jeu (createControls est appelé à la construction).
+  // Fabric 7 teste les poignées de la dernière déclarée à la première : les coins sont
+  // donc déclarés après les zones de rotation, pour que le redimensionnement l'emporte
+  // là où elles se chevauchent. Chaque objet reçoit son propre jeu (createControls).
   InteractiveFabricObject.createControls = () => {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { mtr, mt, mb, ml, mr, ...corners } = controlsUtils.createObjectDefaultControls();
+    for (const corner of Object.values(corners)) {
+      corner.cursorStyleHandler = (_e, control, object) => diagonalCursor(control, object.angle);
+    }
     return {
       controls: {
-        ...corners,
         rotateTl: rotateZone(-0.5, -0.5, 0),
         rotateTr: rotateZone(0.5, -0.5, 90),
         rotateBr: rotateZone(0.5, 0.5, 180),
         rotateBl: rotateZone(-0.5, 0.5, 270),
+        ...corners,
       },
     };
   };
