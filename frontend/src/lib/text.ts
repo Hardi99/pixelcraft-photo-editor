@@ -46,6 +46,9 @@ export const TEXT_PRESETS: Record<TextPresetId, { label: string; text: string; o
 export const BASE_TEXT_STYLE: Partial<fabric.ITextOptions> = {
   fill: "#ffffff",
   textAlign: "center",
+  // Ancré au centre : en tapant, le texte s'élargit des deux côtés et reste centré
+  originX: "center",
+  originY: "center",
   paintFirst: "stroke", // le contour passe derrière le remplissage, comme dans Canva
   strokeLineJoin: "round",
   shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.45)", blur: 12, offsetX: 0, offsetY: 4 }),

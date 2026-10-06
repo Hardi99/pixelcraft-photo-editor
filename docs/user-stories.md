@@ -130,6 +130,7 @@ Dimensions vérifiées en octobre 2026 dans plusieurs guides de référence (Ins
 | US8-3 | Je passe un élément au premier plan ou à l'arrière-plan des autres éléments (la photo reste toujours dessous). | e2e |
 | US8-4 | Je duplique un élément (bouton ou Ctrl+D) ; la copie apparaît décalée et sélectionnée. | e2e |
 | US8-5 | Un élément verrouillé ne peut être ni déplacé, ni redimensionné, ni modifié, ni supprimé, jusqu'à ce que je le déverrouille ; le verrou est conservé à l'enregistrement. | e2e |
+| US8-6 | Un élément sélectionné n'affiche que quatre poignées d'angle (redimensionnement proportionnel, sans déformer le texte) et une poignée de rotation sous l'élément ; au survol, le curseur devient une main, qui se ferme pendant le déplacement. | e2e |
 
 ## US9 — Utiliser PixelCraft sur l'écran adapté
 

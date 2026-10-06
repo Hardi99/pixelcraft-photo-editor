@@ -27,7 +27,8 @@ test.describe("US3 — Écrire un texte qui a du style", () => {
     expect(text).toMatchObject({ text: "SOLDES", fontFamily: "Anton", fontSize: 110, fill: "#ffffff", hasShadow: true });
     const c = center(text.box);
     const p = await pageCenter(page);
-    // centré horizontalement (la saisie ne change que la largeur autour du centre de départ)
+    // reste centré après la saisie : le texte s'élargit des deux côtés
+    expect(Math.abs(c.x - p.x)).toBeLessThan(2);
     expect(Math.abs(c.y - p.y)).toBeLessThan(2);
   });
 
@@ -185,6 +186,30 @@ test.describe("US8 — Mettre en page les éléments", () => {
     expect(after.box.top).toBeCloseTo(before.top, 1);
     await expect(page.getByText("Texte verrouillé")).toBeVisible();
   });
+});
+
+test("US8-6 · poignées réduites et curseur main", async ({ page }) => {
+  await addText(page, "Poignées", "title");
+
+  // Poignées visibles sur l'élément sélectionné
+  const controls = await page.evaluate(() => {
+    const obj = (window as any).__pixelcraft.store.getState().canvas.getActiveObject();
+    return Object.keys(obj.controls).filter((key) => obj.isControlVisible(key)).sort();
+  });
+  expect(controls).toEqual(["bl", "br", "mtr", "tl", "tr"]);
+
+  // Curseur : main au survol, main fermée pendant le déplacement
+  const canvas = (await page.locator(".upper-canvas").boundingBox())!;
+  const zoom = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getZoom());
+  const c = center((await firstText(page)).box);
+  const cursor = () => page.locator(".upper-canvas").evaluate((el) => getComputedStyle(el).cursor);
+
+  await page.mouse.move(canvas.x + c.x * zoom, canvas.y + c.y * zoom);
+  await expect.poll(cursor).toBe("grab");
+  await page.mouse.down();
+  await page.mouse.move(canvas.x + c.x * zoom + 30, canvas.y + c.y * zoom + 10, { steps: 4 });
+  await expect.poll(cursor).toBe("grabbing");
+  await page.mouse.up();
 });
 
 test.describe("US9 — Utiliser PixelCraft sur l'écran adapté", () => {

@@ -9,6 +9,9 @@ import { trackEdit } from "@/lib/tracking";
 import { refreshTextFonts } from "@/lib/text";
 import { duplicateObject, isLocked, moveBy, pageBox } from "@/lib/objects";
 import { snapToPage } from "@/lib/snapping";
+import { applyFabricTheme } from "@/lib/fabricTheme";
+
+applyFabricTheme();
 import { SafeZoneOverlay } from "@/components/Editor/SafeZoneOverlay";
 import type { ActiveTool, CanvasLayers } from "@/types";
 import { toast } from "sonner";
@@ -54,6 +57,8 @@ export function Canvas() {
       backgroundColor: "#18181b",
       preserveObjectStacking: true,
       selection: true,
+      hoverCursor: "grab", // main ouverte au survol d'un élément…
+      moveCursor: "grabbing", // …fermée pendant le déplacement
     });
     fc.setZoom(scale);
     fabricRef.current = fc;
