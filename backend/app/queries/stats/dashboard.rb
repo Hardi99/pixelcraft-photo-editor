@@ -16,6 +16,7 @@ module Stats
         total_events: @events.count,
         avg_editing_time: @projects.average(:editing_time).to_i,
         tool_usage: @events.where(action_name: Event::EDIT_ACTIONS).group(:action_name).count,
+        exports_by_target:,
         funnel:,
         recent_activity:
       }
@@ -32,6 +33,12 @@ module Stats
       exported = visitors_who(%w[export]).where(visitor_id: edited)
 
       { uploaded: uploaded.count, edited: edited.count, exported: exported.count }
+    end
+
+    # Lecture d'une clé du jsonb metadata directement en SQL (metadata->>'target')
+    def exports_by_target
+      @events.where(action_name: "export").where("metadata ? 'target'")
+             .group(Arel.sql("metadata->>'target'")).count
     end
 
     def visitors_who(actions)

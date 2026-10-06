@@ -3,6 +3,8 @@ class Project < ApplicationRecord
   MAX_IMAGE_SIZE = 10.megabytes
   MAX_LAYERS_SIZE = 1.megabyte
   ASPECT_RATIOS = %w[1:1 4:5 16:9 9:16].freeze
+  EXPORT_TARGETS = %w[post portrait story landscape].freeze
+  EXPORT_FORMATS = %w[jpeg png].freeze
 
   belongs_to :visitor
   has_many :events, dependent: :nullify
@@ -28,10 +30,13 @@ class Project < ApplicationRecord
     self.class.update_counters(id, editing_time: seconds) if seconds.positive?
   end
 
-  def register_export!
+  # Destination et type de fichier alimentent la statistique « exports par destination » ;
+  # une valeur inconnue est ignorée plutôt que stockée telle quelle.
+  def register_export!(target: nil, format: nil)
+    metadata = { target: target.presence_in(EXPORT_TARGETS), format: format.presence_in(EXPORT_FORMATS) }.compact
     transaction do
       self.class.update_counters(id, exports_count: 1)
-      events.create!(visitor:, action_name: "export")
+      events.create!(visitor:, action_name: "export", metadata:)
     end
     reload
   end

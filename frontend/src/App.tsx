@@ -45,7 +45,7 @@ export default function App() {
           )}
           <div
             className={cn(
-              "absolute inset-y-0 right-0 z-40 transition-transform lg:static lg:translate-x-0",
+              "absolute inset-y-0 right-0 z-40 transition-transform lg:static lg:z-auto lg:translate-x-0",
               panelOpen ? "visible translate-x-0" : "invisible translate-x-full lg:visible"
             )}
           >

@@ -20,11 +20,13 @@ export function formatDate(iso: string): string {
   }).format(new Date(iso));
 }
 
-export function downloadDataURL(dataURL: string, filename: string) {
+export function downloadFile(file: File) {
+  const url = URL.createObjectURL(file);
   const a = document.createElement("a");
-  a.href = dataURL;
-  a.download = filename;
+  a.href = url;
+  a.download = file.name;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

@@ -1,9 +1,9 @@
-import { Undo2, Redo2, Download, Save, LayoutGrid, BarChart3, SlidersHorizontal, Crop } from "lucide-react";
+import { Undo2, Redo2, Save, LayoutGrid, BarChart3, SlidersHorizontal, Crop } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditorStore } from "@/stores/editorStore";
-import { useCanvas } from "@/hooks/useCanvas";
+import { ExportMenu } from "@/components/ExportMenu";
 import { useSaveProject } from "@/hooks/useProjects";
 import { serializeLayers } from "@/lib/layers";
 import { canvasThumbnail } from "@/lib/scene";
@@ -33,7 +33,6 @@ export function Header({ onTogglePanel }: { onTogglePanel: () => void }) {
   const canUndo = useEditorStore((s) => s.historyIndex > 0);
   const canRedo = useEditorStore((s) => s.historyIndex < s.history.length - 1);
 
-  const { exportPNG } = useCanvas();
   const saveProject = useSaveProject();
   const inEditor = activeView === "editor";
 
@@ -146,10 +145,7 @@ export function Header({ onTogglePanel }: { onTogglePanel: () => void }) {
             <span className="hidden md:inline">{saveProject.isPending ? "Enregistrement…" : "Enregistrer"}</span>
           </Button>
 
-          <Button size="sm" aria-label="Exporter en PNG" disabled={!imageLoaded} onClick={exportPNG}>
-            <Download className="h-4 w-4" />
-            <span className="hidden sm:inline">Exporter</span>
-          </Button>
+          <ExportMenu />
         </div>
       )}
     </header>

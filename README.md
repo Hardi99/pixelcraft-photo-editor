@@ -3,7 +3,7 @@
 ![Rails](https://img.shields.io/badge/Ruby_on_Rails-7.2-CC0000?logo=rubyonrails&logoColor=white)
 ![Ruby](https://img.shields.io/badge/Ruby-3.2-CC342D?logo=ruby&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
-![RSpec](https://img.shields.io/badge/RSpec-36_tests-6DB33F)
+![RSpec](https://img.shields.io/badge/RSpec-39_tests-6DB33F)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)
 ![Fabric.js](https://img.shields.io/badge/Fabric.js-5.3-FF6B35)
@@ -17,11 +17,13 @@ Le backend Rails porte les règles métier (propriété des projets, stockage de
 
 ## ✨ Fonctionnalités
 
-**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), texte éditable sur le canvas (police, taille, couleur, ombre…), 12 stickers, 11 filtres Instagram + réglages manuels, 4 formats (1:1, 4:5, 16:9, 9:16), annuler/rétablir (50 états), copier/coller, export PNG 2×.
+**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), texte éditable sur le canvas (police, taille, couleur, ombre…), 12 stickers, 11 filtres Instagram + réglages manuels, 4 formats (1:1, 4:5, 16:9, 9:16), annuler/rétablir (50 états), copier/coller.
+
+**Export pour les réseaux sociaux** — chaque format sort aux dimensions attendues par les plateformes, quelle que soit la taille de l'écran : 1080 × 1080 (publication carrée), 1080 × 1350 (portrait), 1080 × 1920 (stories, Reels, TikTok), 1920 × 1080 (YouTube, X, LinkedIn). JPEG ou PNG, nom de fichier explicite (`mon-projet-story-1080x1920.jpg`), et partage direct vers les applis quand l'appareil le permet (Web Share API, surtout sur mobile).
 
 **Projets** — sauvegarde de la photo d'origine, des calques et des réglages ; réouverture à l'identique (format, filtre, calques) ; galerie paginée ; suppression avec confirmation.
 
-**Statistiques** — projets, exports, temps moyen d'édition, usage des outils, parcours Import → Retouche → Export **en visiteurs distincts**, dernières actions.
+**Statistiques** — projets, exports, temps moyen d'édition, usage des outils, exports par destination, parcours Import → Retouche → Export **en visiteurs distincts**, dernières actions.
 
 ### Direction visuelle : le labo photo
 
@@ -164,7 +166,7 @@ Toutes les routes sauf `POST /visitors` et `GET /stats` exigent `Authorization: 
 | POST | `/api/v1/projects` | Création (multipart : `image`, `thumbnail`, `layers`, `settings`) |
 | PATCH | `/api/v1/projects/:id` | Mise à jour ; `editing_seconds` s'additionne au total |
 | DELETE | `/api/v1/projects/:id` | Suppression |
-| POST | `/api/v1/projects/:id/export` | Incrémente le compteur d'exports |
+| POST | `/api/v1/projects/:id/export` | Incrémente le compteur d'exports ; `target` et `file_type` alimentent la statistique par destination |
 | POST | `/api/v1/events` | Trace une action d'interface (upload, text, sticker, filter, crop, export) |
 | GET | `/api/v1/stats` | KPI agrégés |
 | GET | `/up` | Healthcheck |
@@ -184,7 +186,7 @@ Toutes les routes sauf `POST /visitors` et `GET /stats` exigent `Authorization: 
 | Temps d'édition écrasé à chaque sauvegarde | Cumulé |
 | Historique : la photo en base64 dans chacun des 50 états | Calques seuls |
 | Seeds en échec (action `select` refusée par le modèle), `schema.rb` désynchronisé | Seeds idempotents, schéma régénéré |
-| 0 test backend | 36 tests RSpec + RuboCop + CI |
+| 0 test backend | 39 tests RSpec + RuboCop + CI |
 
 ---
 

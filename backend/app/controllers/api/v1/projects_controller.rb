@@ -45,8 +45,9 @@ module Api
         head :no_content
       end
 
+      # file_type et non format : params[:format] est réservé par Rails au format de réponse.
       def export
-        render json: ProjectSerializer.new(@project.register_export!)
+        render json: ProjectSerializer.new(@project.register_export!(target: params[:target], format: params[:file_type]))
       end
 
       private

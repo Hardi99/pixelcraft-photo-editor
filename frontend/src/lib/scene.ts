@@ -85,3 +85,27 @@ export function canvasThumbnail(canvas: fabric.Canvas, width = 480): Promise<Blo
   const dataUrl = canvas.toDataURL({ format: "jpeg", quality: 0.8, multiplier: width / canvas.getWidth() });
   return fetch(dataUrl).then((res) => res.blob());
 }
+
+/**
+ * Rend la scène aux dimensions exactes demandées, quelle que soit la taille
+ * d'affichage du canvas (l'ancien export « × 2 » dépendait de la fenêtre).
+ */
+export function renderAtSize(canvas: fabric.Canvas, width: number, height: number): HTMLCanvasElement {
+  canvas.discardActiveObject();
+  canvas.renderAll();
+  const rendered = canvas.toCanvasElement(width / canvas.getWidth());
+  if (rendered.width === width && rendered.height === height) return rendered;
+
+  // Arrondis de Fabric (taille d'affichage fractionnaire) : on recadre au pixel près.
+  const exact = document.createElement("canvas");
+  exact.width = width;
+  exact.height = height;
+  exact.getContext("2d")?.drawImage(rendered, 0, 0, width, height);
+  return exact;
+}
+
+export function canvasToBlob(canvas: HTMLCanvasElement, mime: string, quality = 0.92): Promise<Blob> {
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("Export impossible"))), mime, quality)
+  );
+}

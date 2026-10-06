@@ -1,5 +1,6 @@
 import { useStats } from "@/hooks/useProjects";
 import { formatTime } from "@/lib/utils";
+import { EXPORT_TARGETS } from "@/lib/exportPresets";
 import type { Stats } from "@/types";
 
 const ACTION_LABELS: Record<string, string> = {
@@ -100,17 +101,27 @@ function Funnel({ funnel }: { funnel: Stats["funnel"] }) {
   );
 }
 
-function ToolUsage({ usage }: { usage: Stats["tool_usage"] }) {
-  const rows = Object.entries(usage).sort(([, a], [, b]) => b - a);
+const TARGET_LABELS = Object.fromEntries(
+  Object.values(EXPORT_TARGETS).map(({ id, label, width, height }) => [id, `${label} (${width}×${height})`])
+);
+
+function Breakdown({ id, title, empty, counts, labels }: {
+  id: string;
+  title: string;
+  empty: string;
+  counts: Record<string, number>;
+  labels: Record<string, string>;
+}) {
+  const rows = Object.entries(counts).sort(([, a], [, b]) => b - a);
   const max = rows[0]?.[1] ?? 0;
   return (
-    <section aria-labelledby="tools-title">
-      <h2 id="tools-title" className="text-lg font-bold">Outils utilisés</h2>
+    <section aria-labelledby={id}>
+      <h2 id={id} className="text-lg font-bold">{title}</h2>
       {rows.length ? (
-        <ul className="mt-6 space-y-3">
-          {rows.map(([tool, count]) => (
-            <li key={tool} className="grid grid-cols-[5.5rem_1fr_2.5rem] items-center gap-3 text-sm">
-              <span>{TOOL_LABELS[tool] ?? tool}</span>
+        <ul className="mt-5 space-y-3">
+          {rows.map(([key, count]) => (
+            <li key={key} className="grid grid-cols-[minmax(5.5rem,auto)_1fr_2.5rem] items-center gap-3 text-sm">
+              <span>{labels[key] ?? key}</span>
               <div className="h-2 overflow-hidden rounded-sm bg-line">
                 <div className="h-full rounded-sm bg-paper/70" style={{ width: `${percent(count, max)}%` }} />
               </div>
@@ -119,7 +130,7 @@ function ToolUsage({ usage }: { usage: Stats["tool_usage"] }) {
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-dim">Aucun outil utilisé pour l'instant.</p>
+        <p className="mt-2 text-sm text-dim">{empty}</p>
       )}
     </section>
   );
@@ -162,7 +173,22 @@ export function KPIDashboard() {
             <Figures stats={stats} />
             <div className="grid gap-12 lg:grid-cols-[3fr_2fr]">
               <Funnel funnel={stats.funnel} />
-              <ToolUsage usage={stats.tool_usage} />
+              <div className="space-y-10">
+                <Breakdown
+                  id="tools-title"
+                  title="Outils utilisés"
+                  empty="Aucun outil utilisé pour l'instant."
+                  counts={stats.tool_usage}
+                  labels={TOOL_LABELS}
+                />
+                <Breakdown
+                  id="targets-title"
+                  title="Exports par destination"
+                  empty="Aucun export vers un réseau pour l'instant."
+                  counts={stats.exports_by_target ?? {}}
+                  labels={TARGET_LABELS}
+                />
+              </div>
             </div>
             <RecentActivity activity={stats.recent_activity} />
           </div>

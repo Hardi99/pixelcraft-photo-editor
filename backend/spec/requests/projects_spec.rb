@@ -100,9 +100,10 @@ RSpec.describe "Projects API" do
   describe "POST /api/v1/projects/:id/export" do
     it "incrémente le compteur côté serveur" do
       project = create(:project, visitor:, exports_count: 2)
-      post("/api/v1/projects/#{project.id}/export", headers:)
+      post("/api/v1/projects/#{project.id}/export", headers:, params: { target: "portrait", file_type: "png" }, as: :json)
 
       expect(json["exports_count"]).to eq(3)
+      expect(project.events.last.metadata).to eq("target" => "portrait", "format" => "png")
     end
   end
 

@@ -39,6 +39,22 @@ RSpec.describe Project do
     end
   end
 
+  describe "#register_export! avec destination" do
+    it "enregistre la destination et le type de fichier" do
+      project = create(:project)
+      project.register_export!(target: "story", format: "jpeg")
+
+      expect(project.events.last.metadata).to eq("target" => "story", "format" => "jpeg")
+    end
+
+    it "ignore une destination inconnue" do
+      project = create(:project)
+      project.register_export!(target: "<script>", format: "gif")
+
+      expect(project.events.last.metadata).to eq({})
+    end
+  end
+
   describe "#add_editing_time!" do
     it "cumule le temps au lieu de l'écraser" do
       project = create(:project, editing_time: 100)

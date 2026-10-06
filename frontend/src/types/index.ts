@@ -58,6 +58,7 @@ export interface Stats {
   total_events: number;
   avg_editing_time: number;
   tool_usage: Record<string, number>;
+  exports_by_target: Record<string, number>;
   funnel: {
     uploaded: number;
     edited: number;

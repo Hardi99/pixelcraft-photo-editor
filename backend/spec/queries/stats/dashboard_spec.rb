@@ -28,6 +28,16 @@ RSpec.describe Stats::Dashboard do
     expect(stats[:tool_usage]).to eq("text" => 2, "filter" => 1)
   end
 
+  it "compte les exports par destination, sans les exports non renseignés" do
+    visitor = create(:visitor)
+    create(:event, visitor:, action_name: "export", metadata: { "target" => "story" })
+    create(:event, visitor:, action_name: "export", metadata: { "target" => "story" })
+    create(:event, visitor:, action_name: "export", metadata: { "target" => "post" })
+    create(:event, visitor:, action_name: "export")
+
+    expect(stats[:exports_by_target]).to eq("story" => 2, "post" => 1)
+  end
+
   it "calcule les totaux projets" do
     create(:project, editing_time: 100, exports_count: 2)
     create(:project, editing_time: 300, exports_count: 1)

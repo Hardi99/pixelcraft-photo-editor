@@ -87,7 +87,13 @@ export const api = {
     update: (id: number, input: ProjectInput) =>
       request<Project>(`/api/v1/projects/${id}`, { method: "PATCH", body: toFormData(input) }),
     delete: (id: number) => request<void>(`/api/v1/projects/${id}`, { method: "DELETE" }),
-    export: (id: number) => request<Project>(`/api/v1/projects/${id}/export`, { method: "POST" }),
+    export: (id: number, details: { target: string; format: string }) =>
+      request<Project>(`/api/v1/projects/${id}/export`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // params[:format] est réservé par Rails : le type de fichier voyage en file_type
+        body: JSON.stringify({ target: details.target, file_type: details.format }),
+      }),
   },
   stats: () => send<Stats>("/api/v1/stats"),
 };

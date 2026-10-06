@@ -4,9 +4,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEditorStore } from "@/stores/editorStore";
 import { api } from "@/lib/api";
 import { snapshot } from "@/lib/layers";
-import { applyFilters, buildFilters } from "@/lib/scene";
+import { applyFilters, buildFilters, canvasToBlob, renderAtSize } from "@/lib/scene";
+import { EXPORT_FORMATS, EXPORT_TARGETS, exportFileName, type ExportFormat } from "@/lib/exportPresets";
 import { trackEdit } from "@/lib/tracking";
-import { downloadDataURL } from "@/lib/utils";
+import { downloadFile } from "@/lib/utils";
 import type { ImageAdjustments } from "@/types";
 import { toast } from "sonner";
 
@@ -72,21 +73,46 @@ export function useCanvas() {
     pushHistory(snapshot(canvas));
   }, []);
 
-  const exportPNG = useCallback(async () => {
-    const { canvas, currentProject, setCurrentProject } = editor();
-    if (!canvas) return;
-    downloadDataURL(canvas.toDataURL({ format: "png", multiplier: 2 }), "pixelcraft-export.png");
-    toast.success("Image exportée en PNG");
+  /** Exporte aux dimensions exactes de la destination, puis télécharge ou partage le fichier. */
+  const exportImage = useCallback(
+    async (format: ExportFormat, mode: "download" | "share" = "download") => {
+      const { canvas, aspectRatio, projectTitle, currentProject, setCurrentProject } = editor();
+      if (!canvas) return;
+      const target = EXPORT_TARGETS[aspectRatio];
+      const { mime, label } = EXPORT_FORMATS[format];
 
-    // Projet sauvegardé : le serveur incrémente le compteur (atomique) et trace l'export.
-    if (!currentProject) return trackEdit("export");
-    try {
-      setCurrentProject(await api.projects.export(currentProject.id));
-      qc.invalidateQueries({ queryKey: ["projects"] });
-    } catch {
-      // L'export local a réussi ; seul le compteur n'a pas pu être mis à jour.
-    }
-  }, [qc]);
+      let file: File;
+      try {
+        const blob = await canvasToBlob(renderAtSize(canvas, target.width, target.height), mime);
+        file = new File([blob], exportFileName(projectTitle, target, format), { type: mime });
+      } catch {
+        return toast.error("L'image n'a pas pu être générée. Réessayez.");
+      }
 
-  return { addText, addSticker, deleteSelected, applyInstagramFilter, applyAdjustment, exportPNG };
+      if (mode === "share" && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: projectTitle });
+        } catch (error) {
+          if ((error as DOMException).name === "AbortError") return; // partage annulé : rien n'est exporté
+          downloadFile(file);
+        }
+      } else {
+        downloadFile(file);
+      }
+      toast.success(`Image exportée en ${target.width} × ${target.height} px (${label})`);
+
+      // Projet enregistré : le serveur incrémente le compteur (atomique) et trace l'export.
+      const details = { target: target.id, format };
+      if (!currentProject) return trackEdit("export", details);
+      try {
+        setCurrentProject(await api.projects.export(currentProject.id, details));
+        qc.invalidateQueries({ queryKey: ["projects"] });
+      } catch {
+        // L'export local a réussi ; seul le compteur n'a pas pu être mis à jour.
+      }
+    },
+    [qc]
+  );
+
+  return { addText, addSticker, deleteSelected, applyInstagramFilter, applyAdjustment, exportImage };
 }
