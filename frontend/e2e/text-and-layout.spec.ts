@@ -191,12 +191,13 @@ test.describe("US8 — Mettre en page les éléments", () => {
 const rotationOf = (page: Page) =>
   page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().angle as number);
 
-/** Coin haut-droit de l'élément sélectionné, en coordonnées écran. */
-async function topRightCorner(page: Page) {
+/** Position écran d'une poignée de l'élément sélectionné (« tr », « rotateTr »…). */
+async function handle(page: Page, name: string) {
   const canvas = (await page.locator(".upper-canvas").boundingBox())!;
-  const corner = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().oCoords.tr);
-  return { x: canvas.x + corner.x, y: canvas.y + corner.y };
+  const point = await page.evaluate((key) => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().oCoords[key], name);
+  return { x: canvas.x + point.x, y: canvas.y + point.y };
 }
+const topRightCorner = (page: Page) => handle(page, "tr");
 
 test("US8-6 · quatre poignées d'angle et curseur main", async ({ page }) => {
   await addText(page, "Poignées", "title");
@@ -240,9 +241,9 @@ test("US8-6 · quatre poignées d'angle et curseur main", async ({ page }) => {
 });
 
 /** Fait tourner l'élément sélectionné de `degrees` en glissant depuis l'extérieur du coin haut-droit. */
-async function rotateBy(page: Page, degrees: number) {
-  const corner = await topRightCorner(page);
-  const start = { x: corner.x + 14, y: corner.y - 14 };
+async function rotateBy(page: Page, degrees: number, modifiers: string[] = []) {
+  // La zone de rotation tourne avec l'élément : on vise sa position réelle
+  const start = await handle(page, "rotateTr");
   const canvas = (await page.locator(".upper-canvas").boundingBox())!;
   const pivotLocal = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getActiveObject().getCenterPoint());
   const zoom = await page.evaluate(() => (window as any).__pixelcraft.store.getState().canvas.getZoom());
@@ -250,13 +251,17 @@ async function rotateBy(page: Page, degrees: number) {
   const radius = Math.hypot(start.x - pivot.x, start.y - pivot.y);
   const from = Math.atan2(start.y - pivot.y, start.x - pivot.x);
 
+  // Survol d'abord, comme un vrai geste : Fabric repère la zone de rotation au survol
+  await page.mouse.move(start.x - 2, start.y + 2);
   await page.mouse.move(start.x, start.y);
+  for (const key of modifiers) await page.keyboard.down(key);
   await page.mouse.down();
   for (let step = 1; step <= 12; step++) {
     const a = from + ((degrees * Math.PI) / 180) * (step / 12);
     await page.mouse.move(pivot.x + radius * Math.cos(a), pivot.y + radius * Math.sin(a));
   }
   await page.mouse.up();
+  for (const key of modifiers.reverse()) await page.keyboard.up(key);
 }
 
 test("US8-7 · rotation depuis l'extérieur d'un coin, aimantée tous les 45°", async ({ page }) => {
@@ -265,7 +270,7 @@ test("US8-7 · rotation depuis l'extérieur d'un coin, aimantée tous les 45°",
 
   // Juste à l'extérieur du coin haut-droit : curseur de rotation (flèche dessinée en SVG)
   const corner = await topRightCorner(page);
-  await page.mouse.move(corner.x + 14, corner.y - 14);
+  await page.mouse.move(corner.x + 10, corner.y - 10);
   await expect.poll(cursor).toContain("url(");
 
   // 30° : loin d'un multiple de 45°, l'angle suit le geste
@@ -275,6 +280,22 @@ test("US8-7 · rotation depuis l'extérieur d'un coin, aimantée tous les 45°",
   // +13° (total 43°) : à moins de 5° de 45°, l'élément s'aimante
   await rotateBy(page, 13);
   expect(await rotationOf(page)).toBe(45);
+});
+
+test("US8-8 · avec Maj ou Alt Gr, la rotation se cale par paliers de 15°", async ({ page }) => {
+  await addText(page, "Droit", "title");
+
+  // Sans touche : 37° reste 37° (à plus de 5° de 45°)
+  await rotateBy(page, 37);
+  expect(Math.abs((await rotationOf(page)) - 37)).toBeLessThan(2);
+
+  // Avec Maj : +20° (57° au total) se cale sur le palier de 15° le plus proche, 60°
+  await rotateBy(page, 20, ["Shift"]);
+  expect(await rotationOf(page)).toBe(60);
+
+  // Avec Alt Gr (Ctrl+Alt sous Windows) : -28° (32°) se cale sur 30°
+  await rotateBy(page, -28, ["Control", "Alt"]);
+  expect(await rotationOf(page)).toBe(30);
 });
 
 test.describe("US9 — Utiliser PixelCraft sur l'écran adapté", () => {

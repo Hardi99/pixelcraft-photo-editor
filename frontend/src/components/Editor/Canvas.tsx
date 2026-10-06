@@ -64,6 +64,9 @@ export function Canvas() {
       selection: true,
       hoverCursor: "grab", // main ouverte au survol d'un élément…
       moveCursor: "grabbing", // …fermée pendant le déplacement
+      // Alt inverse par défaut le pivot de la rotation (coin opposé au lieu du centre).
+      // Alt Gr envoie Alt : on le neutralise pour que Maj / Alt Gr ne fassent que caler l'angle (US8-8).
+      centeredKey: null,
     });
     fc.setZoom(scale);
     fabricRef.current = fc;

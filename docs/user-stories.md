@@ -133,6 +133,7 @@ Dimensions vérifiées en octobre 2026 dans plusieurs guides de référence (Ins
 | US8-5 | Un élément verrouillé ne peut être ni déplacé, ni redimensionné, ni modifié, ni supprimé, jusqu'à ce que je le déverrouille ; le verrou est conservé à l'enregistrement. | e2e |
 | US8-6 | Un élément sélectionné n'affiche que quatre poignées d'angle (redimensionnement proportionnel, sans déformer le texte) ; au survol, le curseur devient une main, qui se ferme pendant le déplacement. | e2e |
 | US8-7 | Juste à l'extérieur d'un coin, le curseur devient une flèche de rotation : en glissant, l'élément tourne autour de son centre, et s'aimante tous les 45° quand on s'en approche. | e2e |
+| US8-8 | En maintenant Maj ou Alt Gr pendant la rotation, l'élément se cale par paliers de 15° (0°, 15°, 30°… 90°), pour le remettre droit facilement. | e2e |
 
 ## US9 — Utiliser PixelCraft sur l'écran adapté
 
