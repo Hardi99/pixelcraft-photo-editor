@@ -14,7 +14,7 @@ Rails.application.configure do
 
   config.log_level = ENV.fetch("RAILS_LOG_LEVEL", "info")
   config.log_tags = [ :request_id ]
-  config.logger = ActiveSupport::TaggedLogging.logger($stdout)
+  config.logger = ActiveSupport::TaggedLogging.new(ActiveSupport::Logger.new($stdout))
 
   config.i18n.fallbacks = true
   config.active_support.report_deprecations = false
