@@ -12,25 +12,28 @@ import { Control, InteractiveFabricObject, controlsUtils, type TPointerEvent, ty
 let applied = false;
 
 /**
- * Flèche courbe à double pointe, dessinée comme les curseurs système (corps blanc,
- * contour noir fin). Le tracé remplit son cadre (≈ 18 px dans une image de 24 px),
- * comme la main de saisie. Déclarée en 2x via image-set : comme les curseurs
- * système, elle grandit avec le zoom de l'écran (125 %, 150 %…).
+ * Flèche courbe à double pointe, calibrée sur la main de saisie de Chrome
+ * (ui/resources/cursors/hand_grab.cur de Chromium) : image de 32 × 32 et dessin de
+ * 18 × 18 pixels écran, contour compris. Chromium n'a qu'une taille pour la main,
+ * qui ne grossit donc pas avec le zoom de l'écran ; les curseurs CSS, eux, sont
+ * agrandis par le zoom : on divise par devicePixelRatio pour rester à 18 px réels.
  */
-const CURSOR_SIZE = 24;
+const CURSOR_BOX = 32; // pixels écran, comme hand_grab.cur
+const CURSOR_CENTER = 11.5; // centre du dessin, sert aussi de point actif
 
 function rotateCursor(degrees: number) {
-  // Arc du coin bas-gauche au coin haut-droit, bombé vers l'extérieur, et deux pointes
+  const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
+  const size = CURSOR_BOX / dpr; // taille CSS qui donne 32 pixels écran
+  const hotspot = Math.round(CURSOR_CENTER / dpr);
+  // Tracé de 14 unités + contour : ≈ 18 pixels écran, comme la main
   const arrow = `<path d="M5 18 A13 13 0 0 1 18 5"/><path d="M14 2.5 18 5 14.5 9"/><path d="M2.5 14 5 18 9 14.5"/>`;
-  const svg = (px: number) => `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24">
-    <g transform="rotate(${degrees} 12 12)" fill="none" stroke-linecap="round" stroke-linejoin="round">
-      <g stroke="#000000" stroke-width="3.4">${arrow}</g>
-      <g stroke="#ffffff" stroke-width="1.5">${arrow}</g>
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${CURSOR_BOX} ${CURSOR_BOX}">
+    <g transform="rotate(${degrees} ${CURSOR_CENTER} ${CURSOR_CENTER}) translate(2.2 2.2) scale(0.91)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <g stroke="#000000" stroke-width="4.3">${arrow}</g>
+      <g stroke="#ffffff" stroke-width="2.2">${arrow}</g>
     </g>
   </svg>`;
-  const url = (px: number) => `url("data:image/svg+xml,${encodeURIComponent(svg(px))}")`;
-  const hotspot = CURSOR_SIZE / 2;
-  return `-webkit-image-set(${url(CURSOR_SIZE)} 1x, ${url(CURSOR_SIZE * 2)} 2x) ${hotspot} ${hotspot}, ${url(CURSOR_SIZE)} ${hotspot} ${hotspot}, crosshair`;
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hotspot} ${hotspot}, crosshair`;
 }
 
 /**
