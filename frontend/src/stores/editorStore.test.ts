@@ -105,6 +105,43 @@ describe("resetEditor", () => {
   });
 });
 
+describe("openProject", () => {
+  const project = {
+    id: 7,
+    title: "Affiche",
+    editing_time: 120,
+    exports_count: 1,
+    settings: { aspect_ratio: "9:16" as const, filter: "moon", adjustments: { brightness: 0.2, contrast: 0, saturation: 0, blur: 0 } },
+    image_url: "/rails/active_storage/blobs/redirect/abc/photo.png",
+    thumbnail_url: null,
+    layers: { objects: [{ type: "i-text", text: "Salut" }] },
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+
+  it("restaure format, filtre, réglages et calques depuis le projet", () => {
+    useEditorStore.getState().openProject(project);
+    const s = useEditorStore.getState();
+    expect(s.aspectRatio).toBe("9:16");
+    expect(s.selectedFilter).toBe("moon");
+    expect(s.adjustments.brightness).toBe(0.2);
+    expect(s.pendingLayers).toEqual(project.layers);
+    expect(s.activeView).toBe("editor");
+  });
+
+  it("recharge la photo d'origine depuis ActiveStorage, pas la miniature", () => {
+    useEditorStore.getState().openProject(project);
+    expect(useEditorStore.getState().imageUrl).toMatch(/\/rails\/active_storage\/blobs\/redirect\/abc\/photo\.png$/);
+    expect(useEditorStore.getState().imageFile).toBeNull();
+  });
+
+  it("force la reconstruction du canvas", () => {
+    const before = useEditorStore.getState().sceneId;
+    useEditorStore.getState().openProject(project);
+    expect(useEditorStore.getState().sceneId).toBe(before + 1);
+  });
+});
+
 describe("getEditingTime", () => {
   it("retourne 0 si le timer n'a pas démarré", () => {
     expect(useEditorStore.getState().getEditingTime()).toBe(0);

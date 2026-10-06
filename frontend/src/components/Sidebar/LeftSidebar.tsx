@@ -1,107 +1,162 @@
-import { MousePointer2, Type, Smile, Crop, RotateCcw } from "lucide-react";
+import { MousePointer2, Type, Smile, Crop, ImagePlus, Smartphone } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
+import { trackEdit } from "@/lib/tracking";
+import { cn } from "@/lib/utils";
 import type { ActiveTool, AspectRatio } from "@/types";
 
 const TOOLS: { id: ActiveTool; icon: React.ElementType; label: string; shortcut: string }[] = [
   { id: "select", icon: MousePointer2, label: "Sélection", shortcut: "V" },
   { id: "text", icon: Type, label: "Texte", shortcut: "T" },
-  { id: "sticker", icon: Smile, label: "Sticker", shortcut: "S" },
-  { id: "crop", icon: Crop, label: "Ratio", shortcut: "R" },
+  { id: "sticker", icon: Smile, label: "Stickers", shortcut: "S" },
+  { id: "crop", icon: Crop, label: "Format", shortcut: "R" },
 ];
 
-const RATIOS: AspectRatio[] = ["1:1", "4:5", "16:9", "9:16"];
+const RATIOS: { id: AspectRatio; label: string; w: number; h: number }[] = [
+  { id: "1:1", label: "Carré", w: 1, h: 1 },
+  { id: "4:5", label: "Portrait", w: 4, h: 5 },
+  { id: "3:4", label: "Grille", w: 3, h: 4 },
+  { id: "16:9", label: "Paysage", w: 16, h: 9 },
+  { id: "9:16", label: "Story", w: 9, h: 16 },
+];
 
 const STICKERS = ["😍", "🔥", "✨", "💯", "🎉", "❤️", "👑", "🌟", "🚀", "💎", "🎨", "📸"];
 
+function Popover({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="absolute left-full top-2 z-30 ml-2 w-56 rounded-lg border border-line bg-panel p-3 shadow-2xl">
+      <p className="mb-2 text-xs font-medium text-dim">{title}</p>
+      {children}
+    </div>
+  );
+}
+
 export function LeftSidebar() {
-  const { activeTool, setActiveTool, aspectRatio, setAspectRatio, imageLoaded } = useEditorStore();
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const aspectRatio = useEditorStore((s) => s.aspectRatio);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
+  const showSafeZones = useEditorStore((s) => s.showSafeZones);
+  const { setActiveTool, setAspectRatio, toggleSafeZones } = useEditorStore.getState();
   const { addSticker } = useCanvas();
 
+  function startOver() {
+    const { canvas, resetEditor } = useEditorStore.getState();
+    canvas?.remove(...canvas.getObjects());
+    canvas?.setBackgroundImage(null, canvas.renderAll.bind(canvas));
+    resetEditor();
+  }
+
   return (
-    <aside className="flex w-16 flex-col items-center gap-1 border-r border-zinc-800 bg-zinc-950 py-3">
-      {TOOLS.map(({ id, icon: Icon, label, shortcut }) => (
-        <Tooltip key={id}>
-          <TooltipTrigger asChild>
-            <Button
-              variant={activeTool === id ? "secondary" : "ghost"}
-              size="icon"
-              disabled={!imageLoaded && id !== "crop"}
-              onClick={() => setActiveTool(id)}
-              className="h-10 w-10"
-            >
-              <Icon className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {label} <kbd className="ml-1 text-[10px] opacity-60">{shortcut}</kbd>
-          </TooltipContent>
-        </Tooltip>
-      ))}
+    <aside aria-label="Outils" className="relative z-20 flex w-14 shrink-0 flex-col items-center gap-1 border-r border-line bg-panel py-3">
+      {TOOLS.map(({ id, icon: Icon, label, shortcut }) => {
+        const active = activeTool === id;
+        return (
+          <Tooltip key={id}>
+            <TooltipTrigger asChild>
+              <button
+                aria-label={label}
+                aria-pressed={active}
+                disabled={!imageLoaded && id !== "crop"}
+                onClick={() => setActiveTool(active && id !== "select" ? "select" : id)}
+                className={cn(
+                  "relative flex h-10 w-10 items-center justify-center rounded-md transition-colors disabled:opacity-30",
+                  active ? "bg-safelight/15 text-safelight" : "text-dim hover:bg-accent hover:text-paper"
+                )}
+              >
+                <Icon className="h-[18px] w-[18px]" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {label} · {shortcut}
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
 
-      <div className="my-2 h-px w-8 bg-zinc-800" />
-
-      {/* Stickers panel — shown only when sticker tool active */}
       {activeTool === "sticker" && imageLoaded && (
-        <div className="absolute left-16 top-14 z-30 w-52 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl">
-          <p className="mb-2 text-xs font-medium text-zinc-400">Stickers</p>
+        <Popover title="Ajouter un sticker">
           <div className="grid grid-cols-4 gap-1">
             {STICKERS.map((emoji) => (
               <button
                 key={emoji}
+                aria-label={`Ajouter ${emoji}`}
                 onClick={() => { addSticker(emoji); setActiveTool("select"); }}
-                className="rounded p-1.5 text-2xl hover:bg-zinc-700 transition-colors"
+                className="rounded-md p-1.5 text-2xl transition-colors hover:bg-accent"
               >
                 {emoji}
               </button>
             ))}
           </div>
-        </div>
+        </Popover>
       )}
 
-      {/* Ratio panel — shown only when crop tool active */}
       {activeTool === "crop" && (
-        <div className="absolute left-16 top-14 z-30 w-40 rounded-lg border border-zinc-700 bg-zinc-900 p-3 shadow-xl">
-          <p className="mb-2 text-xs font-medium text-zinc-400">Format</p>
-          <div className="flex flex-col gap-1">
-            {RATIOS.map((r) => (
+        <Popover title="Format de la publication">
+          <div className="grid grid-cols-2 gap-1.5">
+            {RATIOS.map(({ id, label, w, h }) => (
               <button
-                key={r}
-                onClick={() => { setAspectRatio(r); setActiveTool("select"); }}
-                className={`rounded px-3 py-1.5 text-left text-xs transition-colors ${
-                  aspectRatio === r
-                    ? "bg-primary text-white"
-                    : "text-zinc-300 hover:bg-zinc-700"
-                }`}
+                key={id}
+                aria-pressed={aspectRatio === id}
+                onClick={() => {
+                  if (id !== aspectRatio && imageLoaded) trackEdit("crop", { ratio: id });
+                  setAspectRatio(id);
+                  setActiveTool("select");
+                }}
+                className={cn(
+                  "flex flex-col items-center gap-2 rounded-md border px-2 pb-2 pt-3 transition-colors",
+                  aspectRatio === id ? "border-safelight text-paper" : "border-line text-dim hover:border-paper/30 hover:text-paper"
+                )}
               >
-                {r} {r === "1:1" ? "— Carré" : r === "4:5" ? "— Portrait" : r === "16:9" ? "— Paysage" : "— Story"}
+                {/* Aperçu du format à ses vraies proportions */}
+                <span className="flex h-9 items-center">
+                  <span
+                    className={cn("block rounded-[2px] border-[1.5px]", aspectRatio === id ? "border-safelight" : "border-current")}
+                    style={{ width: w >= h ? 36 : (36 * w) / h, height: h >= w ? 36 : (36 * h) / w }}
+                  />
+                </span>
+                <span className="text-xs">
+                  <span className="font-semibold tabular-nums">{id}</span> {label}
+                </span>
               </button>
             ))}
           </div>
-        </div>
+        </Popover>
       )}
 
-      {/* Reset / clear */}
+      <div className="my-1 h-px w-6 bg-line" />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            aria-label="Zones masquées par Instagram"
+            aria-pressed={showSafeZones}
+            disabled={!imageLoaded}
+            onClick={toggleSafeZones}
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-md transition-colors disabled:opacity-30",
+              showSafeZones ? "text-safelight hover:bg-accent" : "text-dim hover:bg-accent hover:text-paper"
+            )}
+          >
+            <Smartphone className="h-[18px] w-[18px]" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          {showSafeZones ? "Masquer" : "Afficher"} les zones masquées par Instagram
+        </TooltipContent>
+      </Tooltip>
+
       {imageLoaded && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="mt-auto h-10 w-10 text-zinc-500 hover:text-destructive"
-              onClick={() => {
-                const { canvas, resetEditor } = useEditorStore.getState();
-                canvas?.clear();
-                canvas?.setBackgroundColor("#18181b", canvas.renderAll.bind(canvas));
-                resetEditor();
-              }}
+            <button
+              aria-label="Nouvelle photo"
+              onClick={startOver}
+              className="mt-auto flex h-10 w-10 items-center justify-center rounded-md text-dim transition-colors hover:bg-accent hover:text-paper"
             >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
+              <ImagePlus className="h-[18px] w-[18px]" />
+            </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Recommencer</TooltipContent>
+          <TooltipContent side="right">Nouvelle photo (le projet en cours est fermé)</TooltipContent>
         </Tooltip>
       )}
     </aside>

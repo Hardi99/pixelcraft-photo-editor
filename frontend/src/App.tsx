@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { Header } from "@/components/Header";
@@ -10,39 +11,56 @@ import { Gallery } from "@/components/Gallery";
 import { KPIDashboard } from "@/components/KPIDashboard";
 import { AssistantBot } from "@/components/AssistantBot";
 import { useEditorStore } from "@/stores/editorStore";
+import { cn } from "@/lib/utils";
 
 export default function App() {
-  const { activeView } = useEditorStore();
+  const activeView = useEditorStore((s) => s.activeView);
+  const [panelOpen, setPanelOpen] = useState(false);
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-screen flex-col overflow-hidden bg-zinc-950 text-zinc-100">
-        <Header />
+      <div className="flex h-dvh flex-col overflow-hidden bg-ink text-paper">
+        <Header onTogglePanel={() => setPanelOpen((open) => !open)} />
 
-        <div className={`flex flex-1 overflow-hidden ${activeView !== "editor" ? "hidden" : ""}`}>
+        {/* L'éditeur reste monté (masqué) pour conserver le canvas Fabric entre les vues */}
+        <main className={cn("relative flex min-h-0 flex-1", activeView !== "editor" && "hidden")}>
           <LeftSidebar />
 
-          <div className="flex flex-1 flex-col overflow-hidden">
-            <TextToolbar />
-            <Canvas />
+          <div className="relative flex min-w-0 flex-1 flex-col">
+            <div className="relative flex min-h-0 flex-1">
+              <TextToolbar />
+              <Canvas />
+              <AssistantBot />
+            </div>
             <FilterPresets />
           </div>
 
-          <div className="hidden lg:flex">
+          {/* Réglages : colonne fixe sur grand écran, panneau superposé en dessous */}
+          {panelOpen && (
+            <button
+              aria-label="Fermer les réglages"
+              className="absolute inset-0 z-30 bg-ink/60 lg:hidden"
+              onClick={() => setPanelOpen(false)}
+            />
+          )}
+          <div
+            className={cn(
+              "absolute inset-y-0 right-0 z-40 transition-transform lg:static lg:z-auto lg:translate-x-0",
+              panelOpen ? "visible translate-x-0" : "invisible translate-x-full lg:visible"
+            )}
+          >
             <RightSidebar />
           </div>
-        </div>
+        </main>
 
-        <div className={`flex flex-1 overflow-hidden ${activeView !== "gallery" ? "hidden" : ""}`}>
-          <Gallery />
-        </div>
+        {activeView === "gallery" && <Gallery />}
+        {activeView === "dashboard" && <KPIDashboard />}
 
-        <div className={`flex flex-1 overflow-hidden ${activeView !== "dashboard" ? "hidden" : ""}`}>
-          <KPIDashboard />
-        </div>
-
-        <AssistantBot />
-        <Toaster theme="dark" position="bottom-right" richColors />
+        <Toaster
+          theme="dark"
+          position="bottom-center"
+          toastOptions={{ style: { background: "hsl(var(--paper))", color: "hsl(var(--ink))", border: "none" } }}
+        />
       </div>
     </TooltipProvider>
   );

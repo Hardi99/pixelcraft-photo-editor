@@ -1,17 +1,15 @@
 #!/bin/bash
 set -e
 
-echo "=== Starting Photo Editor Backend ==="
-echo "RAILS_ENV: ${RAILS_ENV:-development}"
-
 if [ -z "$DATABASE_URL" ]; then
-  echo "WARNING: DATABASE_URL is not set — skipping migrations"
+  echo "WARNING: DATABASE_URL is not set — skipping database setup"
 else
-  echo "=== Running database migrations ==="
-  bundle exec rake db:migrate
-  echo "=== Seeding database if empty ==="
-  bundle exec rails runner "Event.count == 0 && load('db/seeds.rb')"
+  # db:prepare crée la base si besoin, applique les migrations, et lance les seeds
+  # (idempotents) uniquement à la création.
+  bundle exec rails db:prepare
 fi
 
-echo "=== Starting Rails server ==="
-exec bundle exec rails server -b 0.0.0.0 -p ${PORT:-3000}
+# Après un arrêt brutal du conteneur, ce fichier reste et Puma refuse de démarrer.
+rm -f tmp/pids/server.pid
+
+exec bundle exec rails server -b 0.0.0.0 -p "${PORT:-3000}"

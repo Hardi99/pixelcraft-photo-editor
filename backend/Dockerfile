@@ -8,7 +8,6 @@ RUN apk add --no-cache \
   bash \
   git \
   vips-dev \
-  imagemagick \
   yaml-dev
 
 WORKDIR /app

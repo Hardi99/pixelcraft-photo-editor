@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2024_01_01_000003) do
+ActiveRecord::Schema[7.2].define(version: 2026_06_01_000007) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -47,19 +47,37 @@ ActiveRecord::Schema[7.2].define(version: 2024_01_01_000003) do
     t.jsonb "metadata", default: {}
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "visitor_id"
+    t.bigint "project_id"
+    t.index ["action_name", "visitor_id"], name: "index_events_on_action_name_and_visitor_id"
     t.index ["action_name"], name: "index_events_on_action_name"
     t.index ["created_at"], name: "index_events_on_created_at"
+    t.index ["project_id"], name: "index_events_on_project_id"
+    t.index ["visitor_id"], name: "index_events_on_visitor_id"
   end
 
   create_table "projects", force: :cascade do |t|
     t.string "title", null: false
-    t.text "layers_json"
-    t.integer "editing_time", default: 0
-    t.integer "exports_count", default: 0
+    t.jsonb "layers", default: {}
+    t.integer "editing_time", default: 0, null: false
+    t.integer "exports_count", default: 0, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "visitor_id", null: false
+    t.jsonb "settings", default: {}, null: false
+    t.index ["visitor_id"], name: "index_projects_on_visitor_id"
+  end
+
+  create_table "visitors", force: :cascade do |t|
+    t.string "token", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["token"], name: "index_visitors_on_token", unique: true
   end
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "events", "projects", on_delete: :nullify
+  add_foreign_key "events", "visitors"
+  add_foreign_key "projects", "visitors"
 end

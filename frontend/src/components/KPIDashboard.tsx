@@ -1,217 +1,198 @@
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip as RechartTooltip,
-  ResponsiveContainer,
-  FunnelChart,
-  Funnel,
-  LabelList,
-  Cell,
-} from "recharts";
-import {
-  Upload,
-  Download,
-  FolderOpen,
-  Clock,
-  Zap,
-  TrendingUp,
-  Activity,
-} from "lucide-react";
 import { useStats } from "@/hooks/useProjects";
 import { formatTime } from "@/lib/utils";
+import { EXPORT_TARGETS } from "@/lib/exportPresets";
+import type { Stats } from "@/types";
 
-const KPI_COLORS = ["#8b5cf6", "#a78bfa", "#7c3aed", "#6d28d9"];
+const ACTION_LABELS: Record<string, string> = {
+  upload: "Photo importée",
+  text: "Texte ajouté",
+  sticker: "Sticker ajouté",
+  filter: "Filtre appliqué",
+  crop: "Format changé",
+  export: "Image exportée",
+  save: "Projet enregistré",
+  delete: "Projet supprimé",
+};
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  color = "text-primary",
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  sub?: string;
-  color?: string;
-}) {
+const TOOL_LABELS: Record<string, string> = {
+  text: "Texte",
+  sticker: "Stickers",
+  filter: "Filtres",
+  crop: "Format",
+};
+
+const percent = (part: number, whole: number) => (whole > 0 ? Math.round((part / whole) * 100) : 0);
+
+const relativeTime = new Intl.RelativeTimeFormat("fr", { numeric: "auto" });
+function timeAgo(iso: string) {
+  const seconds = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
+  const steps: [Intl.RelativeTimeFormatUnit, number][] = [["day", 86400], ["hour", 3600], ["minute", 60]];
+  for (const [unit, size] of steps) {
+    if (Math.abs(seconds) >= size) return relativeTime.format(Math.round(seconds / size), unit);
+  }
+  return "à l'instant";
+}
+
+function Figures({ stats }: { stats: Stats }) {
+  const figures = [
+    { value: stats.total_projects, label: "projets enregistrés" },
+    { value: stats.total_exports, label: "exports de projets" },
+    { value: formatTime(stats.avg_editing_time), label: "d'édition en moyenne par projet" },
+    { value: stats.total_events, label: "actions enregistrées" },
+  ];
   return (
-    <div className="flex items-start gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-      <div className={`rounded-lg bg-zinc-800 p-2.5 ${color}`}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="text-2xl font-bold">{value}</p>
-        <p className="text-sm text-zinc-400">{label}</p>
-        {sub && <p className="mt-0.5 text-xs text-zinc-600">{sub}</p>}
-      </div>
-    </div>
+    <dl className="grid grid-cols-2 border-y border-line sm:grid-cols-4">
+      {figures.map(({ value, label }, i) => (
+        <div
+          key={label}
+          className={`px-4 py-5 sm:px-6 ${i % 2 === 1 ? "border-l border-line" : ""} ${i >= 2 ? "border-t border-line sm:border-t-0" : ""} ${i === 2 ? "sm:border-l" : ""}`}
+        >
+          <dd className="text-3xl font-extrabold tabular-nums tracking-tight sm:text-4xl">{value}</dd>
+          <dt className="mt-1 text-sm text-dim">{label}</dt>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function Funnel({ funnel }: { funnel: Stats["funnel"] }) {
+  const steps = [
+    { label: "Ont importé une photo", value: funnel.uploaded },
+    { label: "Puis l'ont retouchée", value: funnel.edited },
+    { label: "Puis l'ont exportée", value: funnel.exported },
+  ];
+  const overall = percent(funnel.exported, funnel.uploaded);
+
+  return (
+    <section aria-labelledby="funnel-title">
+      <h2 id="funnel-title" className="text-lg font-bold">Parcours des visiteurs</h2>
+      {funnel.uploaded > 0 ? (
+        <>
+          <p className="mt-1 max-w-prose text-sm text-dim">
+            <span className="font-semibold text-paper">{overall} %</span> des visiteurs qui importent une photo
+            vont jusqu'à l'export. Chaque visiteur n'est compté qu'une fois par étape.
+          </p>
+          <ol className="mt-6 space-y-4">
+            {steps.map((step, i) => (
+              <li key={step.label}>
+                <div className="mb-1.5 flex items-baseline justify-between gap-4 text-sm">
+                  <span>{step.label}</span>
+                  <span className="tabular-nums">
+                    <span className="font-semibold">{step.value}</span>
+                    {i > 0 && (
+                      <span className="ml-2 text-dim">{percent(step.value, steps[i - 1].value)} % de l'étape précédente</span>
+                    )}
+                  </span>
+                </div>
+                <div className="h-3 overflow-hidden rounded-sm bg-line">
+                  <div
+                    className={`h-full rounded-sm ${i === steps.length - 1 ? "bg-safelight" : "bg-paper/70"}`}
+                    style={{ width: `${percent(step.value, funnel.uploaded)}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : (
+        <p className="mt-2 text-sm text-dim">Le parcours apparaîtra après le premier import de photo.</p>
+      )}
+    </section>
+  );
+}
+
+const TARGET_LABELS = Object.fromEntries(
+  Object.values(EXPORT_TARGETS).map(({ id, label, width, height }) => [id, `${label} (${width}×${height})`])
+);
+
+function Breakdown({ id, title, empty, counts, labels }: {
+  id: string;
+  title: string;
+  empty: string;
+  counts: Record<string, number>;
+  labels: Record<string, string>;
+}) {
+  const rows = Object.entries(counts).sort(([, a], [, b]) => b - a);
+  const max = rows[0]?.[1] ?? 0;
+  return (
+    <section aria-labelledby={id}>
+      <h2 id={id} className="text-lg font-bold">{title}</h2>
+      {rows.length ? (
+        <ul className="mt-5 space-y-3">
+          {rows.map(([key, count]) => (
+            <li key={key} className="grid grid-cols-[minmax(5.5rem,auto)_1fr_2.5rem] items-center gap-3 text-sm">
+              <span>{labels[key] ?? key}</span>
+              <div className="h-2 overflow-hidden rounded-sm bg-line">
+                <div className="h-full rounded-sm bg-paper/70" style={{ width: `${percent(count, max)}%` }} />
+              </div>
+              <span className="text-right tabular-nums text-dim">{count}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-dim">{empty}</p>
+      )}
+    </section>
+  );
+}
+
+function RecentActivity({ activity }: { activity: Stats["recent_activity"] }) {
+  return (
+    <section aria-labelledby="activity-title">
+      <h2 id="activity-title" className="text-lg font-bold">Dernières actions</h2>
+      {activity.length ? (
+        <ul className="mt-4 divide-y divide-line border-y border-line">
+          {activity.slice(0, 10).map(({ action, at }, i) => (
+            <li key={`${at}-${i}`} className="flex justify-between gap-4 py-2.5 text-sm">
+              <span>{ACTION_LABELS[action] ?? action}</span>
+              <time dateTime={at} className="shrink-0 text-dim">{timeAgo(at)}</time>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-dim">Aucune action pour l'instant.</p>
+      )}
+    </section>
   );
 }
 
 export function KPIDashboard() {
-  const { data: stats, isLoading } = useStats();
-
-  if (isLoading) {
-    return (
-      <div className="flex flex-1 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (!stats) return null;
-
-  const toolData = Object.entries(stats.tool_usage).map(([name, count]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    count,
-  }));
-
-  const funnelData = [
-    { name: "Upload", value: stats.funnel.uploaded, fill: "#8b5cf6" },
-    { name: "Édition", value: stats.funnel.edited, fill: "#a78bfa" },
-    { name: "Export", value: stats.funnel.exported, fill: "#c4b5fd" },
-  ];
-
-  const conversionRate =
-    stats.funnel.uploaded > 0
-      ? Math.round((stats.funnel.exported / stats.funnel.uploaded) * 100)
-      : 0;
+  const { data: stats, isLoading, isError } = useStats();
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold">Insights & KPIs</h2>
-        <p className="mt-1 text-sm text-zinc-500">
-          Métriques d'usage en temps réel — mis à jour toutes les 30s
-        </p>
-      </div>
+    <div className="flex-1 overflow-y-auto bg-ink">
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-8">
+        <h1 className="text-3xl font-extrabold tracking-tight">Statistiques</h1>
+        <p className="mt-1 text-sm text-dim">Usage de PixelCraft, tous visiteurs confondus. Actualisé toutes les 30 secondes.</p>
 
-      {/* KPI Cards */}
-      <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          icon={FolderOpen}
-          label="Projets créés"
-          value={stats.total_projects}
-          color="text-violet-400"
-        />
-        <StatCard
-          icon={Download}
-          label="Exports totaux"
-          value={stats.total_exports}
-          color="text-emerald-400"
-        />
-        <StatCard
-          icon={Activity}
-          label="Actions tracées"
-          value={stats.total_events}
-          color="text-blue-400"
-        />
-        <StatCard
-          icon={Clock}
-          label="Temps moyen d'édition"
-          value={formatTime(stats.avg_editing_time)}
-          color="text-orange-400"
-        />
-      </div>
+        {isLoading && <p className="mt-8 text-sm text-dim" role="status">Chargement des statistiques…</p>}
+        {isError && <p className="mt-8 text-sm text-dim">Le serveur ne répond pas : les statistiques ne peuvent pas être chargées.</p>}
 
-      <div className="mb-6 grid gap-4 lg:grid-cols-2">
-        {/* Tool usage bar chart */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <div className="mb-4 flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-semibold">Outils les plus utilisés</h3>
-          </div>
-          {toolData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={toolData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#71717a" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#71717a" }} axisLine={false} tickLine={false} />
-                <RechartTooltip
-                  cursor={{ fill: "rgba(139, 92, 246, 0.08)" }}
-                  contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8 }}
-                  labelStyle={{ color: "#e4e4e7", fontSize: 12 }}
-                  itemStyle={{ color: "#a1a1aa", fontSize: 12 }}
+        {stats && (
+          <div className="mt-8 space-y-12">
+            <Figures stats={stats} />
+            <div className="grid gap-12 lg:grid-cols-[3fr_2fr]">
+              <Funnel funnel={stats.funnel} />
+              <div className="space-y-10">
+                <Breakdown
+                  id="tools-title"
+                  title="Outils utilisés"
+                  empty="Aucun outil utilisé pour l'instant."
+                  counts={stats.tool_usage}
+                  labels={TOOL_LABELS}
                 />
-                <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                  {toolData.map((_, i) => (
-                    <Cell key={i} fill={KPI_COLORS[i % KPI_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-zinc-600">
-              Pas encore de données
-            </div>
-          )}
-        </div>
-
-        {/* Funnel */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold">Funnel de conversion</h3>
-            </div>
-            <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
-              {conversionRate}% converti
-            </span>
-          </div>
-
-          {funnelData[0].value > 0 ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <FunnelChart>
-                <RechartTooltip
-                  contentStyle={{ background: "#18181b", border: "1px solid #3f3f46", borderRadius: 8 }}
-                  labelStyle={{ color: "#e4e4e7", fontSize: 12 }}
-                  itemStyle={{ color: "#a1a1aa", fontSize: 12 }}
+                <Breakdown
+                  id="targets-title"
+                  title="Exports par destination"
+                  empty="Aucun export vers un réseau pour l'instant."
+                  counts={stats.exports_by_target ?? {}}
+                  labels={TARGET_LABELS}
                 />
-                <Funnel dataKey="value" data={funnelData} isAnimationActive>
-                  <LabelList
-                    position="right"
-                    fill="#a1a1aa"
-                    stroke="none"
-                    dataKey="name"
-                    style={{ fontSize: 12 }}
-                  />
-                </Funnel>
-              </FunnelChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-48 items-center justify-center text-sm text-zinc-600">
-              Uploadez une image pour démarrer
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Conversion steps detail */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-        <div className="mb-4 flex items-center gap-2">
-          <Upload className="h-4 w-4 text-primary" />
-          <h3 className="text-sm font-semibold">Détail du parcours utilisateur</h3>
-        </div>
-        <div className="grid grid-cols-3 gap-4">
-          {funnelData.map((step, i) => (
-            <div key={step.name} className="text-center">
-              <div
-                className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full text-sm font-bold text-white"
-                style={{ backgroundColor: step.fill }}
-              >
-                {step.value}
               </div>
-              <p className="text-sm font-medium">{step.name}</p>
-              {i > 0 && funnelData[i - 1].value > 0 && (
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  {Math.round((step.value / funnelData[i - 1].value) * 100)}% du step précédent
-                </p>
-              )}
             </div>
-          ))}
-        </div>
+            <RecentActivity activity={stats.recent_activity} />
+          </div>
+        )}
       </div>
     </div>
   );

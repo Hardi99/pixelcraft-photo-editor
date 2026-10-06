@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, X, Send, Bot } from "lucide-react";
+import { Lightbulb, X, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/stores/editorStore";
 
@@ -39,8 +39,8 @@ const FILTER_SUGGESTIONS = [
 ];
 
 const GREETINGS = [
-  "Bonjour ! Je suis PixelBot, votre assistant créatif. 👋",
-  "Commencez par uploader une photo (glisser-déposer ou clic), puis ajoutez du texte et des filtres !",
+  "Posez une question sur un outil, ou demandez une autre astuce.",
+  "Pour commencer : déposez une photo, ajoutez un texte, puis choisissez un filtre sur la bande du bas.",
 ];
 
 export function AssistantBot() {
@@ -50,7 +50,8 @@ export function AssistantBot() {
     { role: "bot", text: GREETINGS[1] },
   ]);
   const [input, setInput] = useState("");
-  const { activeTool, imageLoaded } = useEditorStore();
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
 
   function getContextualTip(): string {
     if (!imageLoaded) return "Uploadez d'abord une image PNG ou JPG pour commencer à éditer !";
@@ -90,69 +91,65 @@ export function AssistantBot() {
   }
 
   return (
-    <>
-      {/* Floating button */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 flex h-12 w-12 items-center justify-center rounded-full bg-primary shadow-lg shadow-primary/30 transition-transform hover:scale-105 active:scale-95"
-      >
-        {open ? <X className="h-5 w-5 text-white" /> : <MessageCircle className="h-5 w-5 text-white" />}
-      </button>
-
-      {/* Chat panel */}
+    <div className="absolute bottom-3 right-3 z-20 flex flex-col items-end gap-2">
       {open && (
-        <div className="fixed bottom-20 right-6 z-50 flex h-80 w-72 flex-col overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-900 shadow-2xl">
-          {/* Header */}
-          <div className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-950 px-4 py-3">
-            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary">
-              <Bot className="h-4 w-4 text-white" />
-            </div>
+        <div
+          role="dialog"
+          aria-label="Astuces"
+          className="flex h-80 w-72 max-w-[calc(100vw-6rem)] flex-col overflow-hidden rounded-lg border border-line bg-panel shadow-2xl"
+        >
+          <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
             <div>
-              <p className="text-sm font-semibold">PixelBot</p>
-              <p className="text-[10px] text-zinc-500">Assistant créatif</p>
+              <p className="text-sm font-semibold">Astuces</p>
+              <p className="text-2xs text-dim">Selon l'outil actif</p>
             </div>
             <button
-              className="ml-auto rounded px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-800"
-              onClick={() =>
-                setMessages((m) => [...m, { role: "bot", text: getContextualTip() }])
-              }
+              className="rounded-md px-2 py-1 text-xs text-dim hover:bg-accent hover:text-paper"
+              onClick={() => setMessages((m) => [...m, { role: "bot", text: getContextualTip() }])}
             >
-              Conseil
+              Une autre
             </button>
           </div>
 
-          {/* Messages */}
-          <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+          <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3" aria-live="polite">
             {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3 py-2 text-xs leading-relaxed ${
-                    msg.role === "user"
-                      ? "bg-primary text-white"
-                      : "bg-zinc-800 text-zinc-200"
-                  }`}
-                >
-                  {msg.text}
-                </div>
-              </div>
+              <p
+                key={i}
+                className={`max-w-[85%] rounded-lg px-3 py-2 text-xs leading-relaxed ${
+                  msg.role === "user" ? "self-end bg-paper text-ink" : "self-start bg-ink text-paper/90"
+                }`}
+              >
+                {msg.text}
+              </p>
             ))}
           </div>
 
-          {/* Input */}
-          <div className="flex items-center gap-2 border-t border-zinc-800 p-3">
+          <form
+            className="flex items-center gap-2 border-t border-line p-2"
+            onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+          >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSend()}
-              placeholder="Posez une question…"
-              className="flex-1 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-primary"
+              aria-label="Votre question"
+              placeholder="Filtre, texte, format…"
+              className="min-w-0 flex-1 rounded-md border border-line bg-ink px-2.5 py-1.5 text-xs text-paper placeholder:text-dim"
             />
-            <Button size="icon" className="h-7 w-7 shrink-0" onClick={handleSend}>
+            <Button type="submit" size="icon" className="h-7 w-7 shrink-0" aria-label="Envoyer">
               <Send className="h-3.5 w-3.5" />
             </Button>
-          </div>
+          </form>
         </div>
       )}
-    </>
+
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex h-9 items-center gap-2 rounded-full border border-line bg-panel px-3.5 text-xs font-medium text-paper shadow-lg transition-colors hover:border-paper/30"
+      >
+        {open ? <X className="h-4 w-4" /> : <Lightbulb className="h-4 w-4 text-safelight" />}
+        {open ? "Fermer" : "Astuces"}
+      </button>
+    </div>
   );
 }

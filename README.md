@@ -1,263 +1,207 @@
 # 🎨 PixelCraft — Éditeur de photos
 
-![Rails](https://img.shields.io/badge/Ruby_on_Rails-7.1-CC0000?logo=rubyonrails&logoColor=white)
+![Rails](https://img.shields.io/badge/Ruby_on_Rails-7.2-CC0000?logo=rubyonrails&logoColor=white)
+![Ruby](https://img.shields.io/badge/Ruby-3.2-CC342D?logo=ruby&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
+![RSpec](https://img.shields.io/badge/RSpec-39_tests-6DB33F)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)
-![Tailwind](https://img.shields.io/badge/Tailwind_CSS-3.4-06B6D4?logo=tailwindcss&logoColor=white)
-![Fabric.js](https://img.shields.io/badge/Fabric.js-5.3-FF6B35?logoColor=white)
+![Fabric.js](https://img.shields.io/badge/Fabric.js-5.3-FF6B35)
 ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1?logo=postgresql&logoColor=white)
-![Vercel](https://img.shields.io/badge/Vercel-deployed-000000?logo=vercel&logoColor=white)
-![Railway](https://img.shields.io/badge/Railway-deployed-0B0D0E?logo=railway&logoColor=white)
 
-Éditeur de photos en ligne type Instagram — ajoutez du texte, des filtres et des stickers sur vos photos PNG/JPG, sauvegardez vos projets et suivez vos KPIs.
-Réalisé dans le cadre d'un test technique pour un poste en alternance.
+Éditeur de photos pour préparer ses publications Instagram : on importe une photo PNG/JPG, on ajoute du texte, des stickers et des filtres, on exporte aux dimensions exactes d'Instagram, on sauvegarde le projet et on suit l'usage dans un tableau de bord.
 
-🔗 **[Démo live](https://pixelcraft-photo-editor-front.vercel.app)**
+📋 **Ce que fait l'application, et comment c'est vérifié : [`docs/user-stories.md`](docs/user-stories.md).** Un epic, six user stories, des critères d'acceptation numérotés, chacun relié au test qui le vérifie.
 
----
-
-## 🎯 Objectif du test technique
-
-Ce projet démontre :
-- Architecture **API Rails + React** découplée, propre et maintenable
-- Maîtrise de **Fabric.js** pour la manipulation canvas côté client
-- Accent mis sur les **KPIs et insights** (dashboard dédié avec Recharts)
-- **Docker Compose** pour un environnement 100% reproductible sans rien installer
-- Déploiement réel : **Vercel** (frontend) + **Railway** (backend + PostgreSQL)
-- Code concis, structuré, explicable au premier coup d'œil
+Le backend Rails porte les règles métier (propriété des projets, stockage des images, calcul des KPI) ; le frontend React gère l'édition sur le canvas.
 
 ---
 
 ## ✨ Fonctionnalités
 
-### Éditeur (core)
-- ✅ **Upload** PNG/JPG par glisser-déposer ou file picker
-- ✅ **Canvas Fabric.js** — image full-bleed cover mode, centrée et rognée proprement
-- ✅ **Texte interactif** — draggable, redimensionnable, rotatif, éditable inline (placeholder auto-sélectionné)
-- ✅ **Propriétés texte** — police, taille, couleur, opacité, gras/italique, alignement, ombre
-- ✅ **Réglages image** — luminosité, contraste, saturation, flou (sliders temps réel)
-- ✅ **4 ratios Instagram** — 1:1, 4:5, 16:9, 9:16 (image re-appliquée automatiquement)
-- ✅ **Export PNG** haute résolution (2×)
+**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), texte éditable sur le canvas (police, taille, couleur, ombre…), 12 stickers, 11 filtres Instagram + réglages manuels, 5 formats (1:1, 4:5, 3:4, 9:16, 16:9), repères des zones masquées par Instagram (haut et bas des stories, bords rognés dans la grille du profil), annuler/rétablir (50 états), copier/coller.
 
-### Bonus (différenciation)
-- 🎨 **11 filtres Instagram** — Clarendon, Gingham, Moon, Lark, Reyes, Juno, Slumber, Crema, Ludwig, Aden, Nashville
-- ↩️ **Undo/Redo** multi-niveaux (50 états) + raccourcis Ctrl+Z / Ctrl+Y
-- 📋 **Copy/Paste** d'objets canvas (Ctrl+C / Ctrl+V, décalage automatique)
-- 😊 **Stickers/Emojis** — 12 emojis positionnables et redimensionnables
-- 💾 **Sauvegarde projet** — thumbnail base64 + layers JSON persistés en PostgreSQL
-- 🖼️ **Galerie** — miniatures, réouverture complète du projet, suppression, temps d'édition
-- 📊 **KPI Dashboard** — 4 métriques clés, bar chart outils, funnel Upload→Édition→Export
-- 🔔 **Notifications Sonner** — feedback toast sur chaque action (save, export, suppression)
-- 🤖 **PixelBot** — chatbot flottant avec conseils contextuels (outil actif, état du canvas)
-- 📱 **Responsive** — sidebar masquée sous 1024px, canvas pleine largeur
-- 🌑 **Dark mode** par défaut
+**Export pour les réseaux sociaux** — chaque format sort aux dimensions attendues par les plateformes, quelle que soit la taille de l'écran : 1080 × 1080 (publication carrée), 1080 × 1350 (portrait 4:5), 1080 × 1440 (portrait 3:4, entier dans la grille du profil), 1080 × 1920 (stories, Reels, TikTok), 1920 × 1080 (paysage, YouTube, X, LinkedIn). JPEG ou PNG, nom de fichier explicite (`mon-projet-story-1080x1920.jpg`), et partage direct vers les applis quand l'appareil le permet (Web Share API, surtout sur mobile).
 
----
+**Projets** — sauvegarde de la photo d'origine, des calques et des réglages ; réouverture à l'identique (format, filtre, calques) ; galerie paginée ; suppression avec confirmation.
 
-## 🚀 Démarrage rapide
+**Statistiques** — projets, exports, temps moyen d'édition, usage des outils, exports par destination, parcours Import → Retouche → Export **en visiteurs distincts**, dernières actions.
 
-### Option A — Docker (recommandé, zéro config)
+### Direction visuelle : le labo photo
 
-```bash
-git clone https://github.com/Hardi99/pixelcraft-photo-editor
-cd pixelcraft-photo-editor
-docker-compose up --build
-```
-
-| Service     | URL                   |
-|-------------|-----------------------|
-| Frontend    | http://localhost:5173 |
-| Backend API | http://localhost:3000 |
-
-Peupler les données de démo (KPI dashboard) :
-```bash
-docker-compose exec backend bundle exec rails db:seed
-```
-
-### Option B — Sans Docker
-
-**Prérequis** : Ruby 3.2, Node 20, PostgreSQL 15
-
-```bash
-# Backend
-cd backend
-bundle install
-DATABASE_URL=postgresql://... bundle exec rake db:prepare
-bundle exec rails server
-
-# Frontend (autre terminal)
-cd frontend
-npm install
-VITE_API_URL=http://localhost:3000 npm run dev
-```
+- **Gris neutre sous la photo** (`#3A3B3E`), comme dans Lightroom ou Capture One : aucune teinte d'interface ne fausse la lecture des couleurs.
+- **Un seul accent, l'ambre de la lampe inactinique** (`#F5A524`), réservé à ce qui est actif : outil sélectionné, filtre choisi, export.
+- **Les filtres sont une bande de film 35 mm** : chaque vue montre *votre* photo filtrée, avec le numéro de vue imprimé sur le bord.
+- **La galerie est une planche contact** : chaque tirage garde le format de sa publication (1:1, 4:5, 16:9, 9:16).
+- Une seule famille de caractères (Schibsted Grotesk), chiffres tabulaires pour les statistiques. Sur écran étroit, l'en-tête passe en icônes et les réglages s'ouvrent en panneau superposé.
 
 ---
 
 ## 🏗️ Architecture
 
-```
-pixelcraft-photo-editor/
-├── docker-compose.yml
-├── backend/                              # Rails 7.1 API only
-│   ├── app/
-│   │   ├── controllers/api/v1/
-│   │   │   ├── projects_controller.rb   # CRUD projets (thumbnail base64)
-│   │   │   ├── stats_controller.rb      # KPI agrégés
-│   │   │   └── events_controller.rb     # Tracking actions
-│   │   └── models/
-│   │       ├── project.rb               # title, layers_json, thumbnail, editing_time
-│   │       └── event.rb                 # action_name + metadata jsonb
-│   ├── config/initializers/cors.rb      # Vercel + Railway autorisés
-│   └── db/migrate/                      # 4 migrations
-└── frontend/                            # React 18 + TypeScript
-    └── src/
-        ├── components/
-        │   ├── Editor/
-        │   │   ├── Canvas.tsx           # Fabric.js — cœur éditeur
-        │   │   ├── TextToolbar.tsx      # Propriétés texte sélectionné
-        │   │   └── FilterPresets.tsx    # Strip 11 filtres Instagram
-        │   ├── Sidebar/
-        │   │   ├── LeftSidebar.tsx      # Outils + stickers + ratios
-        │   │   └── RightSidebar.tsx     # Réglages image + raccourcis
-        │   ├── Gallery.tsx              # Projets avec miniatures
-        │   ├── KPIDashboard.tsx         # Recharts bar + funnel
-        │   ├── AssistantBot.tsx         # Chatbot flottant
-        │   └── Header.tsx              # Nav + Save + Export
-        ├── stores/editorStore.ts        # Zustand — state global + undo/redo
-        ├── hooks/
-        │   ├── useCanvas.ts             # Fabric.js wrappé (filtres, export…)
-        │   └── useProjects.ts           # TanStack Query v5
-        └── lib/
-            ├── api.ts                   # Client REST JSON
-            └── filters.ts               # 11 presets Instagram (Fabric filters)
+```mermaid
+flowchart LR
+  subgraph Navigateur
+    UI[React + Fabric.js] --> Store[Zustand<br/>état de l'éditeur]
+    UI --> Query[TanStack Query<br/>cache serveur]
+  end
+  Query -- "JSON / multipart<br/>Authorization: Bearer" --> API
+  subgraph Rails API
+    API[Rack::Cors → Rack::Attack → Router] --> C[Controllers<br/>api/v1]
+    C --> Auth[Concern Authentication]
+    C --> M[Models<br/>Visitor · Project · Event]
+    C --> S[Serializers]
+    C --> Q[Stats::Dashboard<br/>query object]
+    M --> AS[ActiveStorage]
+  end
+  M --> PG[(PostgreSQL)]
+  AS --> Disk[(Disque ou R2/S3)]
 ```
 
----
+### Le chemin d'une requête : « sauvegarder un projet »
 
-## 📡 API REST
+1. **Le navigateur** envoie `POST /api/v1/projects` en multipart : la photo d'origine, une miniature, les calques et réglages en JSON, et le temps passé depuis la dernière sauvegarde.
+2. **Middlewares Rack** : `Rack::Cors` vérifie l'origine (liste blanche exacte), `Rack::Attack` limite le débit par IP.
+3. **Le router** associe la route à `Api::V1::ProjectsController#create`.
+4. **Le concern `Authentication`** lit le jeton `Bearer`, retrouve le `Visitor`, et répond 401 si le jeton est absent ou inconnu.
+5. **Le controller** construit le projet *à partir du visiteur* (`current_visitor.projects.new`). C'est ce qui garantit qu'un visiteur ne peut ni lire ni modifier le projet d'un autre : `current_visitor.projects.find(id)` lève une erreur 404 pour un projet étranger.
+6. **Le modèle `Project`** valide le titre, le type et le poids des images (PNG/JPG, 10 Mo max) et la taille des calques (1 Mo max). ActiveStorage stocke les fichiers ; les calques et réglages vont dans des colonnes `jsonb`.
+7. **La sauvegarde et l'événement `save`** sont écrits dans **la même transaction** : soit les deux réussissent, soit aucun.
+8. **`ProjectSerializer`** produit le JSON (URLs ActiveStorage, jamais de base64) ; les erreurs sont centralisées dans `ApplicationController` (`rescue_from` → 400 / 404 / 422).
 
-| Méthode | Route                | Description                              |
-|---------|----------------------|------------------------------------------|
-| GET     | /api/v1/projects     | Liste des projets avec thumbnail         |
-| POST    | /api/v1/projects     | Création (JSON — thumbnail base64)       |
-| GET     | /api/v1/projects/:id | Détail + layers_json                     |
-| PATCH   | /api/v1/projects/:id | Mise à jour layers + thumbnail           |
-| DELETE  | /api/v1/projects/:id | Suppression                              |
-| GET     | /api/v1/stats        | KPIs agrégés (dashboard)                 |
-| POST    | /api/v1/events       | Tracking d'actions utilisateur           |
+### Modèle de données
 
----
+```mermaid
+erDiagram
+  VISITOR ||--o{ PROJECT : possède
+  VISITOR ||--o{ EVENT : déclenche
+  PROJECT ||--o{ EVENT : concerne
+  PROJECT ||--|| IMAGE : "has_one_attached"
+  PROJECT ||--o| THUMBNAIL : "has_one_attached"
+  VISITOR { string token "has_secure_token" }
+  PROJECT { string title  jsonb layers  jsonb settings  int editing_time  int exports_count }
+  EVENT { string action_name  jsonb metadata }
+```
 
-## 📦 Stack technique
+### Où vit chaque responsabilité (backend)
 
-| Technologie    | Version | Rôle                                   |
-|----------------|---------|----------------------------------------|
-| Ruby on Rails  | 7.1     | API REST, PostgreSQL ORM               |
-| PostgreSQL     | 15      | Base de données (projets + events)     |
-| React          | 18      | UI frontend                            |
-| TypeScript     | 5.3     | Typage statique                        |
-| Vite           | 5       | Build tool + HMR                       |
-| Fabric.js      | 5.3     | Canvas éditeur (manipulation, filtres) |
-| Tailwind CSS   | 3.4     | Styles utilitaires                     |
-| shadcn/ui      | —       | Composants UI (Button, Slider…)        |
-| Zustand        | 4.4     | State global + historique undo/redo    |
-| TanStack Query | 5       | Cache API + mutations                  |
-| Recharts       | 2.10    | Graphiques KPI                         |
-| Sonner         | 1.4     | Notifications toast                    |
-| Docker Compose | —       | Environnement dev complet              |
+| Fichier | Rôle |
+|---|---|
+| `app/controllers/concerns/authentication.rb` | Jeton porteur, `current_visitor`, `allow_anonymous` pour les routes publiques |
+| `app/controllers/api/v1/projects_controller.rb` | CRUD limité au visiteur, pagination, `POST :export` |
+| `app/models/project.rb` | Validations, compteurs atomiques (`update_counters`), `register_export!` |
+| `app/models/event.rb` | Actions autorisées ; contexte de validation `:client` qui interdit au navigateur de déclarer un `save` ou un `delete` |
+| `app/queries/stats/dashboard.rb` | Calcul des KPI, isolé du HTTP, testé seul |
+| `app/serializers/project_serializer.rb` | Contrat JSON : liste légère, détail avec calques |
+| `config/initializers/{cors,rack_attack}.rb` | Origines autorisées, limitation de débit |
+
+### Côté frontend
+
+| Fichier | Rôle |
+|---|---|
+| `components/Editor/Canvas.tsx` | Monte la scène Fabric.js ; la reconstruit au changement de format ou à l'ouverture d'un projet en conservant les calques |
+| `lib/layers.ts` | Sérialise / restaure les calques **sans** l'image de fond (historique léger, sauvegarde propre) |
+| `lib/scene.ts` | Chargement du fond en mode *cover*, filtres, miniature, vérification des fichiers |
+| `lib/api.ts` | Client REST : jeton visiteur, multipart, `assetUrl`, tracking qui ne casse jamais l'éditeur |
+| `stores/editorStore.ts` | État de l'éditeur, historique, `openProject` |
+| `hooks/useProjects.ts` | Requêtes et mutations TanStack Query (galerie paginée, sauvegarde, stats) |
 
 ---
 
 ## 💡 Choix techniques
 
-### Thumbnail base64 en DB plutôt qu'ActiveStorage fichier
-- **Pourquoi ?** Les containers Railway ont un filesystem éphémère — les fichiers sont perdus à chaque redeploy. Stocker le thumbnail JPEG (qualité 0.7, scale 0.5×) directement dans PostgreSQL garantit la persistance sans dépendance externe (S3, Cloudinary).
-- **Inconvénient** : colonne TEXT plus lourde qu'une référence de fichier. Acceptable pour un éditeur photo sans contrainte de volume.
+**Photo d'origine + calques séparés.** La photo est stockée telle quelle dans ActiveStorage ; texte et stickers sont des calques JSON. Rouvrir un projet repart donc de l'original, sans perte de qualité ni texte dupliqué. La miniature ne sert qu'à la galerie.
 
-### Rails API mode
-- Séparation claire frontend/backend, stateless, déploiement découplé Vercel/Railway
-- CORS géré par `rack-cors` avec patterns regex pour `*.vercel.app` et `*.railway.app`
+**Visiteur anonyme par jeton plutôt que des comptes.** Le besoin est « chacun ne voit que ses projets », pas « se connecter depuis plusieurs appareils ». `has_secure_token` + `authenticate_with_http_token` couvrent ce besoin sans Devise. Passer à de vrais comptes consisterait à rattacher le `Visitor` à un `User`.
 
-### Fabric.js 5.x
-- La référence canvas : sélection, transformation, filtres WebGL, sérialisation JSON native
-- Les filtres Instagram combinent `Brightness`, `Contrast`, `Saturation`, `Sepia`, `HueRotation`
-- Undo/redo via snapshots JSON (50 états max) + `canvas.loadFromJSON`
+**Les KPI sont calculés côté serveur.** Le compteur d'exports et le temps d'édition sont incrémentés en SQL (`UPDATE … SET x = x + n`), ce qui évite qu'une écriture en écrase une autre. L'entonnoir compte des **visiteurs distincts**, et chaque étape est incluse dans la précédente : un taux de conversion ne peut pas dépasser 100 %.
 
-### Zustand sans Immer
-- Les objets Fabric.js ne sont pas sérialisables → Immer incompatible
-- Store minimaliste : canvas stocké en `any` pour éviter les imports circulaires
+**Un query object pour les statistiques.** `Stats::Dashboard` ne dépend ni de HTTP ni du controller ; on peut le tester seul et le réutiliser (export CSV, e-mail hebdo…).
 
-### TanStack Query v5
-- Cache automatique, invalidation sur mutation, `refetchInterval: 30s` pour le dashboard live
+**Pas de service layer générique.** La logique métier tient dans les modèles (`register_export!`, `add_editing_time!`) ; on n'extrait un objet que lorsqu'il a une vraie raison d'exister (stats, sérialisation).
 
-### Pas de Repository Pattern ni Service Layer
-- YAGNI — controllers Rails < 50 lignes, `Project.order(...)` suffit
+**Sécurité.** CORS en liste blanche exacte (`FRONTEND_ORIGINS`), Rack::Attack, limites de taille, `force_ssl` en production, 404 plutôt que 403 sur les ressources étrangères (on ne révèle pas leur existence).
 
 ---
 
-## 🎨 Interface
+## 🚀 Démarrage
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Logo  |  Titre projet  |  Éditeur Galerie Insights  │  ← Header
-│                         |  Undo Redo | Save | Export │
-├──────┬──────────────────────────────┬────────────────┤
-│      │   TextToolbar (si texte)     │                │
-│ Left │──────────────────────────────│  RightSidebar  │
-│ Side │                              │  (≥ 1024px)    │
-│ bar  │      Canvas Fabric.js        │  Réglages +    │
-│ 64px │      cover mode              │  Raccourcis    │
-│      │                              │                │
-├──────┴──────────────────────────────┴────────────────┤
-│              FilterPresets Strip (11 filtres)        │
-└──────────────────────────────────────────────────────┘
-                                              🤖 PixelBot
+```bash
+docker compose up --build
 ```
 
-### Raccourcis clavier
-| Touche   | Action          |
-|----------|-----------------|
-| `V`      | Outil sélection |
-| `T`      | Outil texte     |
-| `S`      | Stickers        |
-| `R`      | Ratio/Format    |
-| `Delete` | Supprimer objet |
-| `Ctrl+Z` | Annuler         |
-| `Ctrl+Y` | Rétablir        |
-| `Ctrl+C` | Copier objet    |
-| `Ctrl+V` | Coller objet    |
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:5173 |
+| API | http://localhost:3000 |
+
+La base est créée, migrée et remplie de données de démo au premier lancement (`db:prepare`). Si le port 3000 est déjà pris : `BACKEND_PORT=3001 docker compose up`.
+
+### Tests
+
+```bash
+# Backend : RSpec (modèles, requêtes, stats, CORS) + RuboCop
+docker compose run --rm -e RAILS_ENV=test backend bash -c "unset DATABASE_URL; bundle exec rails db:create db:schema:load && bundle exec rspec"
+docker compose run --rm backend bundle exec rubocop
+
+# Frontend : TypeScript + Vitest (logique isolée)
+cd frontend && npx tsc --noEmit && npm test
+
+# Parcours complets (Playwright) : un vrai navigateur sur le vrai backend.
+# Le backend doit tourner (docker compose up). En local, Playwright utilise Chrome.
+cd frontend && npm run test:e2e
+```
+
+La CI GitHub Actions (`.github/workflows/ci.yml`) lance les trois suites à chaque push : un critère d'acceptation qui casse bloque la fusion.
+
+### Variables d'environnement
+
+Voir `backend/.env.example` et `frontend/.env.example`. En production : `SECRET_KEY_BASE`, `DATABASE_URL`, `FRONTEND_ORIGINS`, et `ACTIVE_STORAGE_SERVICE=r2` (ou un volume persistant monté sur `/app/storage` : le disque d'un conteneur est effacé à chaque déploiement).
 
 ---
 
-## 📊 KPI Dashboard
+## 📡 API
 
-- **4 métriques** : projets créés, exports totaux, actions tracées, temps moyen d'édition
-- **Bar chart** des outils les plus utilisés (Select, Text, Sticker, Filter, Export…)
-- **Funnel de conversion** Upload → Édition → Export avec taux par étape
-- Mise à jour automatique toutes les **30 secondes**
-- Données de démo insérées via `db:seed` (18 events, 3 projets)
+Toutes les routes sauf `POST /visitors` et `GET /stats` exigent `Authorization: Bearer <token>`.
+
+| Méthode | Route | Description |
+|---|---|---|
+| POST | `/api/v1/visitors` | Crée un visiteur anonyme, renvoie son jeton |
+| GET | `/api/v1/projects?page=1` | Projets du visiteur (paginés, sans calques) |
+| GET | `/api/v1/projects/:id` | Détail avec calques |
+| POST | `/api/v1/projects` | Création (multipart : `image`, `thumbnail`, `layers`, `settings`) |
+| PATCH | `/api/v1/projects/:id` | Mise à jour ; `editing_seconds` s'additionne au total |
+| DELETE | `/api/v1/projects/:id` | Suppression |
+| POST | `/api/v1/projects/:id/export` | Incrémente le compteur d'exports ; `target` et `file_type` alimentent la statistique par destination |
+| POST | `/api/v1/events` | Trace une action d'interface (upload, text, sticker, filter, crop, export) |
+| GET | `/api/v1/stats` | KPI agrégés |
+| GET | `/up` | Healthcheck |
+
+---
+
+## 🔁 v2 — ce qui a changé depuis la première version
+
+| Avant | Après |
+|---|---|
+| Rouvrir un projet rechargeait la miniature (texte incrusté + basse résolution) puis reposait les calques : texte en double, image dégradée | Photo d'origine dans ActiveStorage, calques séparés |
+| Changer de format effaçait textes et stickers | Calques conservés |
+| Aucune authentification : tout le monde voyait et supprimait tout | Projets limités au visiteur, 404 sur un projet étranger |
+| CORS par regex non ancrée (`*.vercel.app`, contournable) | Liste blanche exacte |
+| Entonnoir en événements bruts (taux > 100 % possibles) | Visiteurs distincts, étapes imbriquées |
+| Compteur d'exports calculé par le client (bloqué à 1) | Incrément atomique côté serveur |
+| Temps d'édition écrasé à chaque sauvegarde | Cumulé |
+| Historique : la photo en base64 dans chacun des 50 états | Calques seuls |
+| Seeds en échec (action `select` refusée par le modèle), `schema.rb` désynchronisé | Seeds idempotents, schéma régénéré |
+| 0 test backend | 39 tests RSpec + RuboCop + CI |
 
 ---
 
-## 🚧 Améliorations possibles
+## 🚧 Pistes
 
-### Fonctionnalités
-- [ ] Authentification utilisateur (Devise + JWT)
-- [ ] Stockage images S3/Cloudinary pour fichiers lourds
-- [ ] Formes vectorielles (rectangles, cercles, flèches)
-- [ ] Templates prédéfinis (Story, Post, Bannière)
-- [ ] Mode collaboratif temps réel (WebSockets ActionCable)
-
-### Technique
-- [ ] Tests backend (RSpec + FactoryBot)
-- [x] Tests frontend (Vitest — store `editorStore` : 14 tests, 100% pass)
-- [ ] Tests composants (Testing Library)
-- [ ] CI/CD GitHub Actions
-- [ ] Rate limiting API (Rack::Attack)
-- [ ] PWA (installation mobile)
-
----
+- Comptes utilisateurs (rattacher `Visitor` à un `User`) pour retrouver ses projets sur plusieurs appareils
+- Uploads directs vers R2/S3 (ActiveStorage Direct Uploads) pour ne plus faire transiter les fichiers par Rails
+- Variantes d'images générées côté serveur (vips) pour la galerie
+- Cache partagé (Redis) pour Rack::Attack si l'API passe à plusieurs instances
 
 ## 📄 Licence
 
