@@ -12,5 +12,7 @@ class Rack::Attack
   end
 end
 
-# Le middleware est inséré automatiquement par la gem ; désactivé en test.
-Rack::Attack.enabled = !Rails.env.test?
+# Le middleware est inséré automatiquement par la gem. Actif par défaut en production
+# uniquement : en test et pour les tests de bout en bout, chaque scénario crée un
+# visiteur et dépasserait la limite. RATE_LIMIT=on/off force le comportement.
+Rack::Attack.enabled = ENV.fetch("RATE_LIMIT", Rails.env.production? ? "on" : "off") == "on"

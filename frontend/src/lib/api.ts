@@ -32,7 +32,12 @@ function getToken(): Promise<string> {
       // Stockage indisponible (navigation privée) : le jeton vit le temps de l'onglet.
     }
     return token;
-  })();
+  })().catch((error) => {
+    // Ne pas garder un échec en cache : sinon une coupure réseau d'une seconde
+    // bloquerait toutes les requêtes jusqu'au rechargement de la page.
+    tokenPromise = null;
+    throw error;
+  });
   return tokenPromise;
 }
 
