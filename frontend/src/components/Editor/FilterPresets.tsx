@@ -3,7 +3,8 @@ import { useCanvas } from "@/hooks/useCanvas";
 import { FILTER_PRESETS } from "@/lib/filters";
 
 export function FilterPresets() {
-  const { selectedFilter, imageLoaded } = useEditorStore();
+  const selectedFilter = useEditorStore((s) => s.selectedFilter);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
   const { applyInstagramFilter } = useCanvas();
 
   if (!imageLoaded) return null;

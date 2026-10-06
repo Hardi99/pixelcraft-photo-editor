@@ -50,7 +50,8 @@ export function AssistantBot() {
     { role: "bot", text: GREETINGS[1] },
   ]);
   const [input, setInput] = useState("");
-  const { activeTool, imageLoaded } = useEditorStore();
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
 
   function getContextualTip(): string {
     if (!imageLoaded) return "Uploadez d'abord une image PNG ou JPG pour commencer à éditer !";
@@ -109,7 +110,7 @@ export function AssistantBot() {
             </div>
             <div>
               <p className="text-sm font-semibold">PixelBot</p>
-              <p className="text-[10px] text-zinc-500">Assistant créatif</p>
+              <p className="text-[10px] text-zinc-500">Astuces selon l'outil actif</p>
             </div>
             <button
               className="ml-auto rounded px-2 py-1 text-[10px] text-zinc-500 hover:bg-zinc-800"

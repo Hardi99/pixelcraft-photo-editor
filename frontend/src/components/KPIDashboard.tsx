@@ -70,9 +70,9 @@ export function KPIDashboard() {
   }));
 
   const funnelData = [
-    { name: "Upload", value: stats.funnel.uploaded, fill: "#8b5cf6" },
-    { name: "Édition", value: stats.funnel.edited, fill: "#a78bfa" },
-    { name: "Export", value: stats.funnel.exported, fill: "#c4b5fd" },
+    { name: "Ont uploadé", value: stats.funnel.uploaded, fill: "#8b5cf6" },
+    { name: "Puis édité", value: stats.funnel.edited, fill: "#a78bfa" },
+    { name: "Puis exporté", value: stats.funnel.exported, fill: "#c4b5fd" },
   ];
 
   const conversionRate =
@@ -85,7 +85,7 @@ export function KPIDashboard() {
       <div className="mb-6">
         <h2 className="text-xl font-semibold">Insights & KPIs</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Métriques d'usage en temps réel — mis à jour toutes les 30s
+          Métriques d'usage en temps réel (mises à jour toutes les 30 s). L'entonnoir compte des visiteurs distincts.
         </p>
       </div>
 
@@ -154,7 +154,7 @@ export function KPIDashboard() {
           <div className="mb-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              <h3 className="text-sm font-semibold">Funnel de conversion</h3>
+              <h3 className="text-sm font-semibold">Entonnoir de conversion (visiteurs)</h3>
             </div>
             <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-medium text-primary">
               {conversionRate}% converti
@@ -206,7 +206,7 @@ export function KPIDashboard() {
               <p className="text-sm font-medium">{step.name}</p>
               {i > 0 && funnelData[i - 1].value > 0 && (
                 <p className="mt-0.5 text-xs text-zinc-500">
-                  {Math.round((step.value / funnelData[i - 1].value) * 100)}% du step précédent
+                  {Math.round((step.value / funnelData[i - 1].value) * 100)}% de l'étape précédente
                 </p>
               )}
             </div>

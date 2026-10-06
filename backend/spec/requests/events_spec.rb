@@ -11,8 +11,8 @@ RSpec.describe "Events API" do
     expect(visitor.events.pluck(:action_name)).to eq([ "text" ])
   end
 
-  it "refuse qu'un client déclare lui-même un export" do
-    post "/api/v1/events", headers:, params: { event: { action_name: "export" } }
+  it "refuse qu'un client déclare lui-même une sauvegarde" do
+    post "/api/v1/events", headers:, params: { event: { action_name: "save" } }
     expect(response).to have_http_status(:unprocessable_entity)
   end
 

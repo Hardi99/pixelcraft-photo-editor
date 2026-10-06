@@ -1,87 +1,50 @@
 import { useCallback } from "react";
 import { fabric } from "fabric";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEditorStore } from "@/stores/editorStore";
-import { FILTER_PRESETS } from "@/lib/filters";
-import { downloadDataURL } from "@/lib/utils";
 import { api } from "@/lib/api";
+import { snapshot } from "@/lib/layers";
+import { applyFilters, buildFilters } from "@/lib/scene";
+import { trackEdit } from "@/lib/tracking";
+import { downloadDataURL } from "@/lib/utils";
+import type { ImageAdjustments } from "@/types";
 import { toast } from "sonner";
 
+// Lit l'état au moment de l'action (getState) plutôt que de s'abonner au store :
+// les composants qui utilisent ce hook ne re-rendent pas à chaque modification.
+const editor = () => useEditorStore.getState();
+
+function addObject(obj: fabric.Object) {
+  const { canvas, pushHistory } = editor();
+  if (!canvas) return;
+  obj.set({ data: { id: crypto.randomUUID() } });
+  canvas.add(obj);
+  canvas.setActiveObject(obj);
+  canvas.renderAll();
+  pushHistory(snapshot(canvas));
+}
+
 export function useCanvas() {
-  const { canvas, pushHistory, setSelectedFilter, setAdjustments, adjustments } =
-    useEditorStore();
+  const qc = useQueryClient();
 
-  const getBackgroundImage = useCallback((): fabric.Image | null => {
-    if (!canvas) return null;
-    return canvas.backgroundImage as fabric.Image | null;
-  }, [canvas]);
+  const applyInstagramFilter = useCallback((filterName: string) => {
+    const { canvas, adjustments, setSelectedFilter } = editor();
+    if (!canvas) return;
+    setSelectedFilter(filterName);
+    applyFilters(canvas, buildFilters(filterName, adjustments));
+    trackEdit("filter", { filter: filterName });
+  }, []);
 
-  const applyFiltersToImage = useCallback(
-    (img: fabric.Image) => {
-      img.applyFilters();
-      canvas?.renderAll();
-    },
-    [canvas]
-  );
+  const applyAdjustment = useCallback((key: keyof ImageAdjustments, value: number) => {
+    const { canvas, selectedFilter, setAdjustments } = editor();
+    if (!canvas) return;
+    setAdjustments({ [key]: value });
+    applyFilters(canvas, buildFilters(selectedFilter, editor().adjustments));
+  }, []);
 
-  /** Rebuild filters from preset + manual adjustments */
-  const rebuildFilters = useCallback(
-    (
-      presetName: string,
-      adj: typeof adjustments
-    ) => {
-      const img = getBackgroundImage();
-      if (!img) return;
-
-      const preset = FILTER_PRESETS.find((f) => f.name === presetName);
-      const filters: fabric.IBaseFilter[] = [];
-
-      // Instagram preset filters
-      if (preset) {
-        for (const fc of preset.fabricFilters) {
-          const FilterClass = (fabric.Image.filters as unknown as Record<string, new (o: object) => fabric.IBaseFilter>)[fc.type];
-          if (FilterClass) filters.push(new FilterClass(fc.options));
-        }
-      }
-
-      // Manual adjustment filters (stacked on top of preset)
-      if (adj.brightness !== 0)
-        filters.push(new fabric.Image.filters.Brightness({ brightness: adj.brightness }));
-      if (adj.contrast !== 0)
-        filters.push(new fabric.Image.filters.Contrast({ contrast: adj.contrast }));
-      if (adj.saturation !== 0)
-        filters.push(new fabric.Image.filters.Saturation({ saturation: adj.saturation }));
-      if (adj.blur > 0)
-        filters.push(new fabric.Image.filters.Blur({ blur: adj.blur }));
-
-      img.filters = filters;
-      applyFiltersToImage(img);
-    },
-    [getBackgroundImage, applyFiltersToImage, adjustments]
-  );
-
-  const applyInstagramFilter = useCallback(
-    (filterName: string) => {
-      setSelectedFilter(filterName);
-      rebuildFilters(filterName, adjustments);
-      api.track("filter", { filter: filterName });
-    },
-    [setSelectedFilter, rebuildFilters, adjustments]
-  );
-
-  const applyAdjustment = useCallback(
-    (key: keyof typeof adjustments, value: number) => {
-      const newAdj = { ...adjustments, [key]: value };
-      setAdjustments({ [key]: value });
-      const { selectedFilter } = useEditorStore.getState();
-      rebuildFilters(selectedFilter, newAdj);
-    },
-    [adjustments, setAdjustments, rebuildFilters]
-  );
-
-  const addText = useCallback(
-    (text = "Double-cliquez pour éditer") => {
-      if (!canvas) return;
-      const itext = new fabric.IText(text, {
+  const addText = useCallback((text = "Double-cliquez pour éditer") => {
+    addObject(
+      new fabric.IText(text, {
         left: 80,
         top: 80,
         fontSize: 36,
@@ -89,63 +52,41 @@ export function useCanvas() {
         fontFamily: "Arial",
         fontWeight: "bold",
         shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.6)", blur: 8, offsetX: 2, offsetY: 2 }),
-        selectable: true,
-        editable: true,
-      });
-      canvas.add(itext);
-      canvas.setActiveObject(itext);
-      canvas.renderAll();
-      pushHistory(JSON.stringify(canvas.toJSON(["data"])));
-      api.track("text");
-    },
-    [canvas, pushHistory]
-  );
+      })
+    );
+    trackEdit("text");
+  }, []);
 
-  const addSticker = useCallback(
-    (emoji: string) => {
-      if (!canvas) return;
-      const sticker = new fabric.Text(emoji, {
-        left: 100,
-        top: 100,
-        fontSize: 64,
-        selectable: true,
-      });
-      canvas.add(sticker);
-      canvas.setActiveObject(sticker);
-      canvas.renderAll();
-      pushHistory(JSON.stringify(canvas.toJSON(["data"])));
-      api.track("sticker", { emoji });
-    },
-    [canvas, pushHistory]
-  );
+  const addSticker = useCallback((emoji: string) => {
+    addObject(new fabric.Text(emoji, { left: 100, top: 100, fontSize: 64 }));
+    trackEdit("sticker", { emoji });
+  }, []);
 
   const deleteSelected = useCallback(() => {
+    const { canvas, pushHistory } = editor();
+    const obj = canvas?.getActiveObject();
+    if (!obj) return;
+    canvas.remove(obj);
+    canvas.discardActiveObject();
+    canvas.renderAll();
+    pushHistory(snapshot(canvas));
+  }, []);
+
+  const exportPNG = useCallback(async () => {
+    const { canvas, currentProject, setCurrentProject } = editor();
     if (!canvas) return;
-    const obj = canvas.getActiveObject();
-    if (obj) {
-      canvas.remove(obj);
-      canvas.renderAll();
-      pushHistory(JSON.stringify(canvas.toJSON(["data"])));
+    downloadDataURL(canvas.toDataURL({ format: "png", multiplier: 2 }), "pixelcraft-export.png");
+    toast.success("PNG exporté !");
+
+    // Projet sauvegardé : le serveur incrémente le compteur (atomique) et trace l'export.
+    if (!currentProject) return trackEdit("export");
+    try {
+      setCurrentProject(await api.projects.export(currentProject.id));
+      qc.invalidateQueries({ queryKey: ["projects"] });
+    } catch {
+      // L'export local a réussi ; seul le compteur n'a pas pu être mis à jour.
     }
-  }, [canvas, pushHistory]);
-
-  const exportPNG = useCallback(
-    async (projectId?: number) => {
-      if (!canvas) return;
-      const dataURL = canvas.toDataURL({ format: "png", multiplier: 2 });
-      downloadDataURL(dataURL, "pixelcraft-export.png");
-      toast.success("PNG exporté !");
-
-      await api.track("export");
-
-      if (projectId) {
-        await api.projects.update(projectId, {
-          exports_count: (useEditorStore.getState().currentProject?.exports_count ?? 0) + 1,
-        });
-      }
-    },
-    [canvas]
-  );
+  }, [qc]);
 
   return { addText, addSticker, deleteSelected, applyInstagramFilter, applyAdjustment, exportPNG };
 }

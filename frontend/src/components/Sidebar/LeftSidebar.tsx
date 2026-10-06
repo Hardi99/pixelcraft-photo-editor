@@ -3,6 +3,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Button } from "@/components/ui/button";
 import { useEditorStore } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
+import { trackEdit } from "@/lib/tracking";
 import type { ActiveTool, AspectRatio } from "@/types";
 
 const TOOLS: { id: ActiveTool; icon: React.ElementType; label: string; shortcut: string }[] = [
@@ -17,7 +18,10 @@ const RATIOS: AspectRatio[] = ["1:1", "4:5", "16:9", "9:16"];
 const STICKERS = ["😍", "🔥", "✨", "💯", "🎉", "❤️", "👑", "🌟", "🚀", "💎", "🎨", "📸"];
 
 export function LeftSidebar() {
-  const { activeTool, setActiveTool, aspectRatio, setAspectRatio, imageLoaded } = useEditorStore();
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const aspectRatio = useEditorStore((s) => s.aspectRatio);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
+  const { setActiveTool, setAspectRatio } = useEditorStore.getState();
   const { addSticker } = useCanvas();
 
   return (
@@ -69,7 +73,11 @@ export function LeftSidebar() {
             {RATIOS.map((r) => (
               <button
                 key={r}
-                onClick={() => { setAspectRatio(r); setActiveTool("select"); }}
+                onClick={() => {
+                  if (r !== aspectRatio && imageLoaded) trackEdit("crop", { ratio: r });
+                  setAspectRatio(r);
+                  setActiveTool("select");
+                }}
                 className={`rounded px-3 py-1.5 text-left text-xs transition-colors ${
                   aspectRatio === r
                     ? "bg-primary text-white"
@@ -93,8 +101,8 @@ export function LeftSidebar() {
               className="mt-auto h-10 w-10 text-zinc-500 hover:text-destructive"
               onClick={() => {
                 const { canvas, resetEditor } = useEditorStore.getState();
-                canvas?.clear();
-                canvas?.setBackgroundColor("#18181b", canvas.renderAll.bind(canvas));
+                canvas?.remove(...canvas.getObjects());
+                canvas?.setBackgroundImage(null, canvas.renderAll.bind(canvas));
                 resetEditor();
               }}
             >

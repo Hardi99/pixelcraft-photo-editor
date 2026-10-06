@@ -4,6 +4,7 @@ import { AlignLeft, AlignCenter, AlignRight, Bold, Italic } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { useEditorStore } from "@/stores/editorStore";
+import { snapshot } from "@/lib/layers";
 
 const FONTS = ["Arial", "Georgia", "Times New Roman", "Courier New", "Verdana", "Impact", "Trebuchet MS"];
 
@@ -28,7 +29,9 @@ const DEFAULT_PROPS: TextProps = {
 };
 
 export function TextToolbar() {
-  const { canvas, selectedObjectId, pushHistory } = useEditorStore();
+  const canvas = useEditorStore((s) => s.canvas);
+  const selectedObjectId = useEditorStore((s) => s.selectedObjectId);
+  const pushHistory = useEditorStore((s) => s.pushHistory);
   const [props, setProps] = useState<TextProps>(DEFAULT_PROPS);
 
   // Read selected object props
@@ -53,7 +56,7 @@ export function TextToolbar() {
     obj.set({ [key]: value } as Partial<fabric.IText>);
     canvas?.renderAll();
     setProps((p) => ({ ...p, [key]: value }));
-    pushHistory(JSON.stringify(canvas?.toJSON(["data"])));
+    if (canvas) pushHistory(snapshot(canvas));
   }
 
   const activeObj = canvas?.getActiveObject();

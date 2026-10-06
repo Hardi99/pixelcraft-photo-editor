@@ -2,9 +2,11 @@ import { useEffect, useRef, useCallback } from "react";
 import { fabric } from "fabric";
 import { useDropzone } from "react-dropzone";
 import { Upload, ImageIcon } from "lucide-react";
-import { useEditorStore, CANVAS_SIZES } from "@/stores/editorStore";
-import type { ActiveTool } from "@/types";
-import { api } from "@/lib/api";
+import { useEditorStore, CANVAS_SIZES, DEFAULT_ADJUSTMENTS } from "@/stores/editorStore";
+import { restoreLayers, serializeLayers, snapshot } from "@/lib/layers";
+import { buildFilters, isPngOrJpeg, loadBackground, readAsDataURL } from "@/lib/scene";
+import { trackEdit } from "@/lib/tracking";
+import type { ActiveTool, CanvasLayers } from "@/types";
 import { toast } from "sonner";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -14,21 +16,17 @@ export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
-  // Persists the original File across ratio changes
-  const imageFileRef = useRef<File | null>(null);
+  // Calques du canvas précédent, reposés après un changement de format
+  const carriedLayersRef = useRef<CanvasLayers | null>(null);
+  // Vrai dès que le canvas affiche une image (scène chargée ou upload)
+  const sceneReadyRef = useRef(false);
   // Copy/paste clipboard
   const clipboardRef = useRef<fabric.Object | null>(null);
 
-  const {
-    setCanvas,
-    setImageLoaded,
-    imageLoaded,
-    activeTool,
-    aspectRatio,
-    pushHistory,
-    setSelectedObjectId,
-    startEditingTimer,
-  } = useEditorStore();
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
+  const activeTool = useEditorStore((s) => s.activeTool);
+  const aspectRatio = useEditorStore((s) => s.aspectRatio);
+  const sceneId = useEditorStore((s) => s.sceneId);
 
   const { w: canvasW, h: canvasH } = CANVAS_SIZES[aspectRatio];
 
@@ -39,34 +37,7 @@ export function Canvas() {
     return Math.min(maxW / canvasW, maxH / canvasH);
   }, [canvasW, canvasH]);
 
-  // Apply an image file to a given fabric canvas instance
-  const applyImage = useCallback(
-    (fc: fabric.Canvas, file: File, cW: number, cH: number, onDone?: (w: number, h: number) => void) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target!.result as string;
-        useEditorStore.getState().setImageUrl(dataUrl);
-        fabric.Image.fromURL(dataUrl, (img) => {
-          const imgScale = Math.max(cW / img.width!, cH / img.height!);
-          img.set({
-            scaleX: imgScale,
-            scaleY: imgScale,
-            left: (cW - img.width! * imgScale) / 2,
-            top: (cH - img.height! * imgScale) / 2,
-            selectable: false,
-            evented: false,
-          });
-          fc.clear();
-          fc.setBackgroundImage(img, fc.renderAll.bind(fc));
-          onDone?.(img.width!, img.height!);
-        });
-      };
-      reader.readAsDataURL(file);
-    },
-    []
-  );
-
-  // Init / re-init Fabric.js when aspect ratio changes
+  // (Re)construit la scène : au montage, au changement de format, à l'ouverture d'un projet
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -80,85 +51,77 @@ export function Canvas() {
     });
     fc.setZoom(scale);
     fabricRef.current = fc;
+
+    const { imageUrl, pendingLayers, selectedFilter, adjustments, setCanvas, pushHistory } =
+      useEditorStore.getState();
     setCanvas(fc);
+    // Un projet rouvert a priorité sur les calques du canvas précédent.
+    // L'historique repart à zéro : ses états ne s'appliquent qu'à un format donné.
+    const layers = pendingLayers ?? carriedLayersRef.current;
+    useEditorStore.setState({ pendingLayers: null, history: [], historyIndex: -1 });
 
-    // Re-apply image if one was already loaded (ratio change)
-    // Clear history: snapshots from the previous canvas size are incompatible
-    useEditorStore.setState({ history: [], historyIndex: -1 });
-
-    if (imageFileRef.current) {
-      applyImage(fc, imageFileRef.current, canvasW, canvasH, () => {
-        pushHistory(JSON.stringify(fc.toJSON(["data"])));
-      });
-    } else {
-      const { imageUrl } = useEditorStore.getState();
-      if (imageUrl) {
-        fabric.Image.fromURL(imageUrl, (img) => {
-          const imgScale = Math.max(canvasW / img.width!, canvasH / img.height!);
-          img.set({
-            scaleX: imgScale, scaleY: imgScale,
-            left: (canvasW - img.width! * imgScale) / 2,
-            top: (canvasH - img.height! * imgScale) / 2,
-            selectable: false, evented: false,
-          });
-          fc.setBackgroundImage(img, fc.renderAll.bind(fc));
-          pushHistory(JSON.stringify(fc.toJSON(["data"])));
-        }, { crossOrigin: "anonymous" });
-      }
+    let disposed = false;
+    sceneReadyRef.current = false;
+    if (imageUrl) {
+      loadBackground(fc, imageUrl, { w: canvasW, h: canvasH }, buildFilters(selectedFilter, adjustments))
+        .then(() => {
+          if (disposed) return;
+          const record = () => {
+            sceneReadyRef.current = true;
+            pushHistory(snapshot(fc));
+          };
+          if (layers) restoreLayers(fc, layers, record);
+          else record();
+        })
+        .catch(() => toast.error("Impossible de charger l'image du projet."));
     }
 
     // Track selected object
     fc.on("selection:created", (e) => {
       setSelectedObjectId(e.selected?.[0]?.data?.id ?? null);
     });
+    fc.on("selection:updated", (e) => {
+      setSelectedObjectId(e.selected?.[0]?.data?.id ?? null);
+    });
     fc.on("selection:cleared", () => setSelectedObjectId(null));
 
     // Auto-save history on modification
-    fc.on("object:modified", () => {
-      pushHistory(JSON.stringify(fc.toJSON(["data"])));
-    });
+    fc.on("object:modified", () => pushHistory(snapshot(fc)));
 
     // Keyboard shortcuts
     const onKey = (e: KeyboardEvent) => {
-      if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement?.tagName !== "INPUT") {
-        const active = fc.getActiveObject();
-        // Don't delete the object if a text is currently being edited
-        const isEditingText = active?.type === "i-text" && (active as fabric.IText).isEditing;
-        if (active && !isEditingText) {
-          fc.remove(active);
-          fc.renderAll();
-          pushHistory(JSON.stringify(fc.toJSON(["data"])));
-        }
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+      const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName ?? "");
+      const active = fc.getActiveObject();
+      const isEditingText = active?.type === "i-text" && (active as fabric.IText).isEditing;
+      if (typing || isEditingText) return;
+
+      const mod = e.ctrlKey || e.metaKey;
+      if ((e.key === "Delete" || e.key === "Backspace") && active) {
+        fc.remove(active);
+        fc.discardActiveObject();
+        fc.renderAll();
+        pushHistory(snapshot(fc));
+      } else if (mod && e.key === "z" && !e.shiftKey) {
         e.preventDefault();
         useEditorStore.getState().undo();
-      }
-      if ((e.ctrlKey || e.metaKey) && (e.key === "y" || (e.shiftKey && e.key === "z"))) {
+      } else if (mod && (e.key === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
         e.preventDefault();
         useEditorStore.getState().redo();
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "c") {
-        const active = fc.getActiveObject();
-        if (active) active.clone((cloned: fabric.Object) => { clipboardRef.current = cloned; });
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "v") {
-        const obj = clipboardRef.current;
-        if (obj) {
-          obj.clone((cloned: fabric.Object) => {
-            cloned.set({
-              left: (cloned.left ?? 0) + 20,
-              top: (cloned.top ?? 0) + 20,
-              data: { id: Date.now().toString() },
-            });
-            fc.add(cloned);
-            fc.setActiveObject(cloned);
-            fc.renderAll();
-            pushHistory(JSON.stringify(fc.toJSON(["data"])));
+      } else if (mod && e.key === "c" && active) {
+        active.clone((cloned: fabric.Object) => { clipboardRef.current = cloned; });
+      } else if (mod && e.key === "v" && clipboardRef.current) {
+        clipboardRef.current.clone((cloned: fabric.Object) => {
+          cloned.set({
+            left: (cloned.left ?? 0) + 20,
+            top: (cloned.top ?? 0) + 20,
+            data: { id: crypto.randomUUID() },
           });
-        }
-      }
-      if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+          fc.add(cloned);
+          fc.setActiveObject(cloned);
+          fc.renderAll();
+          pushHistory(snapshot(fc));
+        });
+      } else if (!mod) {
         const toolMap: Record<string, ActiveTool> = { v: "select", t: "text", s: "sticker", r: "crop" };
         const tool = toolMap[e.key.toLowerCase()];
         if (tool) useEditorStore.getState().setActiveTool(tool);
@@ -167,11 +130,16 @@ export function Canvas() {
     window.addEventListener("keydown", onKey);
 
     return () => {
+      disposed = true;
+      // Scène pas encore chargée (StrictMode, changement rapide) : on transmet
+      // les calques prévus plutôt qu'un canvas encore vide.
+      carriedLayersRef.current = sceneReadyRef.current ? serializeLayers(fc) : layers;
       window.removeEventListener("keydown", onKey);
       fc.dispose();
     };
+    // getScale dépend du format : la scène est reconstruite uniquement sur ces deux signaux
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aspectRatio]);
+  }, [aspectRatio, sceneId]);
 
   // Sync cursor with active tool
   useEffect(() => {
@@ -192,67 +160,62 @@ export function Canvas() {
         fontFamily: "Arial",
         fontWeight: "bold",
         shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.6)", blur: 8, offsetX: 2, offsetY: 2 }),
-        data: { id: Date.now().toString() },
+        data: { id: crypto.randomUUID() },
       });
       fc.add(itext);
       fc.setActiveObject(itext);
       itext.enterEditing();
       itext.selectAll();
       fc.renderAll();
-      pushHistory(JSON.stringify(fc.toJSON(["data"])));
-      api.track("text");
+      useEditorStore.getState().pushHistory(snapshot(fc));
+      trackEdit("text");
       useEditorStore.getState().setActiveTool("select");
     };
 
     fc.on("mouse:down", handleCanvasClick);
     return () => { fc.off("mouse:down", handleCanvasClick); };
-  }, [activeTool, pushHistory]);
+  }, [activeTool, sceneId, aspectRatio]);
 
-  // Validate file before loading
-  const validateAndLoad = useCallback(
-    (file: File) => {
+  const loadFile = useCallback(
+    async (file: File) => {
       const fc = fabricRef.current;
       if (!fc) return;
 
-      if (file.size === 0) {
-        toast.error("Fichier vide — impossible de charger l'image.");
-        return;
-      }
+      if (file.size === 0) return toast.error("Fichier vide — impossible de charger l'image.");
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`Fichier trop lourd (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum : 10 MB.`);
-        return;
+        return toast.error(`Fichier trop lourd (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum : 10 MB.`);
       }
+      if (!(await isPngOrJpeg(file))) return toast.error("Format non supporté. Seuls PNG et JPG sont acceptés.");
 
-      // Magic bytes check — verify actual file content matches declared type
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const arr = new Uint8Array(e.target!.result as ArrayBuffer).subarray(0, 4);
-        const header = Array.from(arr).map(b => b.toString(16).padStart(2, "0")).join("");
-        const isJpeg = header.startsWith("ffd8ff");
-        const isPng  = header === "89504e47";
-        if (!isJpeg && !isPng) {
-          toast.error("Format non supporté. Seuls PNG et JPG sont acceptés.");
-          return;
+      try {
+        const dataUrl = await readAsDataURL(file);
+        const img = await loadBackground(fc, dataUrl, { w: canvasW, h: canvasH });
+        if (img.width! < MIN_DIMENSION || img.height! < MIN_DIMENSION) {
+          fc.setBackgroundImage(null as unknown as fabric.Image, fc.renderAll.bind(fc));
+          return toast.error(`Image trop petite (${img.width}×${img.height}px). Minimum : ${MIN_DIMENSION}px.`);
         }
 
-        imageFileRef.current = file;
-        applyImage(fc, file, canvasW, canvasH, (w, h) => {
-          if (w < MIN_DIMENSION || h < MIN_DIMENSION) {
-            toast.error(`Image trop petite (${w}×${h}px). Minimum : ${MIN_DIMENSION}px.`);
-            fc.clear();
-            fc.setBackgroundColor("#18181b", fc.renderAll.bind(fc));
-            imageFileRef.current = null;
-            return;
-          }
-          setImageLoaded(true);
-          startEditingTimer();
-          pushHistory(JSON.stringify(fc.toJSON(["data"])));
-          api.track("upload", { filename: file.name });
+        fc.remove(...fc.getObjects());
+        carriedLayersRef.current = null;
+        sceneReadyRef.current = true;
+        useEditorStore.setState({
+          imageUrl: dataUrl,
+          imageFile: file,
+          imageLoaded: true,
+          currentProject: null,
+          selectedFilter: "normal",
+          adjustments: DEFAULT_ADJUSTMENTS,
+          history: [],
+          historyIndex: -1,
+          editingStartTime: Date.now(),
         });
-      };
-      reader.readAsArrayBuffer(file);
+        useEditorStore.getState().pushHistory(snapshot(fc));
+        trackEdit("upload");
+      } catch {
+        toast.error("Impossible de lire cette image.");
+      }
     },
-    [canvasW, canvasH, applyImage, setImageLoaded, startEditingTimer, pushHistory]
+    [canvasW, canvasH]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -272,7 +235,7 @@ export function Canvas() {
           toast.error("Fichier refusé.");
         return;
       }
-      if (accepted[0]) validateAndLoad(accepted[0]);
+      if (accepted[0]) void loadFile(accepted[0]);
     },
     noClick: imageLoaded,
     noDrag: imageLoaded,
@@ -315,4 +278,8 @@ export function Canvas() {
       </div>
     </div>
   );
+}
+
+function setSelectedObjectId(id: string | null) {
+  useEditorStore.getState().setSelectedObjectId(id);
 }

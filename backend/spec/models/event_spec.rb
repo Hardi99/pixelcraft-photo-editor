@@ -6,11 +6,11 @@ RSpec.describe Event do
   end
 
   it "accepte une action serveur dans le contexte par défaut" do
-    expect(build(:event, action_name: "export")).to be_valid
+    expect(build(:event, action_name: "save")).to be_valid
   end
 
   it "refuse une action serveur dans le contexte client" do
-    expect(build(:event, action_name: "export").valid?(:client)).to be(false)
+    expect(build(:event, action_name: "save").valid?(:client)).to be(false)
   end
 
   it "limite la taille des métadonnées" do

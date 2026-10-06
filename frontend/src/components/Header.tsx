@@ -1,58 +1,54 @@
 import { Undo2, Redo2, Download, Save, LayoutGrid, BarChart2, Edit3 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEditorStore } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
-import { useUpdateProject, useCreateProject } from "@/hooks/useProjects";
-import { api } from "@/lib/api";
+import { useSaveProject } from "@/hooks/useProjects";
+import { serializeLayers } from "@/lib/layers";
+import { canvasThumbnail } from "@/lib/scene";
+import type { ProjectInput } from "@/types";
 import { toast } from "sonner";
 
 export function Header() {
-  const {
-    canvas,
-    currentProject,
-    projectTitle,
-    setProjectTitle,
-    activeView,
-    setActiveView,
-    undo,
-    redo,
-    canUndo,
-    canRedo,
-    getEditingTime,
-    imageLoaded,
-    setCurrentProject,
-  } = useEditorStore();
+  const { projectTitle, setProjectTitle, activeView, setActiveView, undo, redo, imageLoaded } =
+    useEditorStore(
+      useShallow((s) => ({
+        projectTitle: s.projectTitle,
+        setProjectTitle: s.setProjectTitle,
+        activeView: s.activeView,
+        setActiveView: s.setActiveView,
+        undo: s.undo,
+        redo: s.redo,
+        imageLoaded: s.imageLoaded,
+      }))
+    );
+  const canUndo = useEditorStore((s) => s.historyIndex > 0);
+  const canRedo = useEditorStore((s) => s.historyIndex < s.history.length - 1);
 
   const { exportPNG } = useCanvas();
-  const updateProject = useUpdateProject();
-  const createProject = useCreateProject();
+  const saveProject = useSaveProject();
 
   async function handleSave() {
-    if (!canvas || !imageLoaded) return;
+    const s = useEditorStore.getState();
+    if (!s.canvas || !s.imageLoaded || !s.imageUrl) return;
 
     try {
-      const layers = JSON.stringify(canvas.toJSON(["id", "name"]));
-      const editingTime = getEditingTime();
-      const thumbnail = canvas.toDataURL({ format: "jpeg", quality: 0.7, multiplier: 0.5 });
+      const input: ProjectInput = {
+        title: s.projectTitle,
+        layers: serializeLayers(s.canvas),
+        settings: { aspect_ratio: s.aspectRatio, filter: s.selectedFilter, adjustments: s.adjustments },
+        thumbnail: await canvasThumbnail(s.canvas),
+        // Temps écoulé depuis la dernière sauvegarde : le serveur l'additionne.
+        editingSeconds: s.getEditingTime(),
+      };
+      // La photo d'origine n'est envoyée qu'à la création ; ensuite seuls les calques changent.
+      if (!s.currentProject) input.image = s.imageFile ?? (await fetch(s.imageUrl).then((r) => r.blob()));
 
-      if (currentProject) {
-        await updateProject.mutateAsync({
-          id: currentProject.id,
-          data: { layers_json: layers, editing_time: editingTime, title: projectTitle, thumbnail },
-        });
-      } else {
-        const project = await createProject.mutateAsync({
-          title: projectTitle,
-          layers_json: layers,
-          editing_time: editingTime,
-          thumbnail,
-        });
-        setCurrentProject(project);
-      }
-
-      api.track("save");
-      toast.success(currentProject ? "Modifications enregistrées !" : "Projet sauvegardé !");
+      const project = await saveProject.mutateAsync({ id: s.currentProject?.id, input });
+      s.setCurrentProject(project);
+      s.startEditingTimer();
+      toast.success(s.currentProject ? "Modifications enregistrées !" : "Projet sauvegardé !");
     } catch {
       toast.error("Erreur lors de la sauvegarde");
     }
@@ -128,7 +124,7 @@ export function Header() {
         {/* Undo / Redo */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={!canUndo()} onClick={undo}>
+            <Button variant="ghost" size="icon" disabled={!canUndo} onClick={undo}>
               <Undo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -137,7 +133,7 @@ export function Header() {
 
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" disabled={!canRedo()} onClick={redo}>
+            <Button variant="ghost" size="icon" disabled={!canRedo} onClick={redo}>
               <Redo2 className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
@@ -150,13 +146,13 @@ export function Header() {
         <Button
           variant="outline"
           size="sm"
-          disabled={!imageLoaded || updateProject.isPending || createProject.isPending}
+          disabled={!imageLoaded || saveProject.isPending}
           onClick={handleSave}
           className="border-zinc-700"
         >
           <Save className="h-4 w-4" />
           <span className="hidden sm:inline">
-            {updateProject.isPending || createProject.isPending ? "Sauvegarde…" : "Sauvegarder"}
+            {saveProject.isPending ? "Sauvegarde…" : "Sauvegarder"}
           </span>
         </Button>
 
@@ -164,7 +160,7 @@ export function Header() {
         <Button
           size="sm"
           disabled={!imageLoaded}
-          onClick={() => exportPNG(currentProject?.id)}
+          onClick={exportPNG}
         >
           <Download className="h-4 w-4" />
           <span className="hidden sm:inline">Exporter PNG</span>

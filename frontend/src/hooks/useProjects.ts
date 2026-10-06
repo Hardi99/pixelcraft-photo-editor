@@ -1,38 +1,24 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import type { Project } from "@/types";
+import type { ProjectInput } from "@/types";
 
 export function useProjects() {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["projects"],
-    queryFn: api.projects.list,
+    queryFn: ({ pageParam }) => api.projects.list(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: ({ meta }) => (meta.page * meta.per_page < meta.total ? meta.page + 1 : undefined),
   });
 }
 
-export function useProject(id: number | null) {
-  return useQuery({
-    queryKey: ["projects", id],
-    queryFn: () => api.projects.get(id!),
-    enabled: id !== null,
-  });
-}
-
-export function useCreateProject() {
+export function useSaveProject() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: Partial<Project>) => api.projects.create(data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["projects"] }),
-  });
-}
-
-export function useUpdateProject() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<Project> }) =>
-      api.projects.update(id, data),
-    onSuccess: (updated) => {
+    mutationFn: ({ id, input }: { id?: number; input: ProjectInput }) =>
+      id ? api.projects.update(id, input) : api.projects.create(input),
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["projects"] });
-      qc.setQueryData(["projects", updated.id], updated);
+      qc.invalidateQueries({ queryKey: ["stats"] });
     },
   });
 }

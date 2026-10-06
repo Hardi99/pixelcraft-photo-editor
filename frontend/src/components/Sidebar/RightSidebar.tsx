@@ -20,7 +20,8 @@ const ADJUSTMENTS: AdjustRow[] = [
 ];
 
 export function RightSidebar() {
-  const { adjustments, imageLoaded } = useEditorStore();
+  const adjustments = useEditorStore((s) => s.adjustments);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
   const { applyAdjustment, deleteSelected } = useCanvas();
 
   if (!imageLoaded) {

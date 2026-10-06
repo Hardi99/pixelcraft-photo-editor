@@ -12,7 +12,7 @@ import { AssistantBot } from "@/components/AssistantBot";
 import { useEditorStore } from "@/stores/editorStore";
 
 export default function App() {
-  const { activeView } = useEditorStore();
+  const activeView = useEditorStore((s) => s.activeView);
 
   return (
     <TooltipProvider delayDuration={300}>
