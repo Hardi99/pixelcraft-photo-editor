@@ -1,8 +1,8 @@
-import { Trash2 } from "lucide-react";
+import { useActiveObject } from "@/hooks/useActiveObject";
+import { ObjectPanel } from "@/components/Sidebar/ObjectPanel";
 import { useEditorStore, DEFAULT_ADJUSTMENTS } from "@/stores/editorStore";
 import { useCanvas } from "@/hooks/useCanvas";
 import { Slider } from "@/components/ui/slider";
-import { Button } from "@/components/ui/button";
 import type { ImageAdjustments } from "@/types";
 
 const ADJUSTMENTS: { label: string; key: keyof ImageAdjustments; min: number }[] = [
@@ -17,10 +17,11 @@ const SHORTCUTS = [
   ["T", "Texte"],
   ["S", "Stickers"],
   ["R", "Format"],
-  ["Suppr", "Supprimer le calque"],
+  ["Suppr", "Supprimer l'élément"],
   ["Ctrl Z", "Annuler"],
   ["Ctrl Y", "Rétablir"],
   ["Ctrl C / V", "Copier, coller"],
+  ["Ctrl D", "Dupliquer"],
 ];
 
 function formatValue(value: number) {
@@ -31,13 +32,15 @@ function formatValue(value: number) {
 export function RightSidebar() {
   const adjustments = useEditorStore((s) => s.adjustments);
   const imageLoaded = useEditorStore((s) => s.imageLoaded);
-  const hasSelection = useEditorStore((s) => s.selectedObjectId !== null);
-  const { applyAdjustment, deleteSelected } = useCanvas();
+  const selected = useActiveObject();
+  const { applyAdjustment } = useCanvas();
   const touched = ADJUSTMENTS.some(({ key }) => adjustments[key] !== 0);
 
   return (
     <aside aria-label="Réglages" className="flex h-full w-72 flex-col overflow-y-auto border-l border-line bg-panel">
-      {imageLoaded ? (
+      {imageLoaded && selected ? (
+        <ObjectPanel obj={selected} />
+      ) : imageLoaded ? (
         <>
           <section className="border-b border-line p-4">
             <div className="mb-4 flex items-baseline justify-between">
@@ -75,20 +78,8 @@ export function RightSidebar() {
           </section>
 
           <section className="border-b border-line p-4">
-            <h2 className="mb-1 text-sm font-semibold">Calque sélectionné</h2>
-            {hasSelection ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 w-full text-destructive hover:text-destructive"
-                onClick={deleteSelected}
-              >
-                <Trash2 className="h-4 w-4" />
-                Supprimer le calque
-              </Button>
-            ) : (
-              <p className="text-sm text-dim">Cliquez sur un texte ou un sticker pour le modifier.</p>
-            )}
+            <h2 className="mb-1 text-sm font-semibold">Textes et stickers</h2>
+            <p className="text-sm text-dim">Sélectionnez un élément pour régler ses effets et sa position.</p>
           </section>
         </>
       ) : (

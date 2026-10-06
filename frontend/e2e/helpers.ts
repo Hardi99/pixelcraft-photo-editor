@@ -76,10 +76,14 @@ export async function chooseFormat(page: Page, ratio: string) {
   await expect.poll(() => editor(page, (s) => s.history.length)).toBeGreaterThan(0);
 }
 
-export async function addText(page: Page, text: string, at = { x: 0.5, y: 0.5 }) {
+const PRESET_LABELS = { title: "Ajouter un titre", subtitle: "Ajouter un sous-titre", body: "Ajouter un corps de texte" };
+
+/** Outil Texte → style prêt → le texte apparaît au centre, sélectionné : on tape par-dessus. */
+export async function addText(page: Page, text: string, preset: keyof typeof PRESET_LABELS = "body") {
+  const before = await editor(page, (s) => s.texts.length);
   await page.getByRole("button", { name: "Texte", exact: true }).click();
-  const box = (await page.locator(".upper-canvas").boundingBox())!;
-  await page.mouse.click(box.x + box.width * at.x, box.y + box.height * at.y);
+  await page.getByRole("button", { name: PRESET_LABELS[preset] }).click();
+  await expect.poll(() => editor(page, (s) => s.texts.length)).toBe(before + 1);
   await page.keyboard.type(text);
   await page.keyboard.press("Escape");
 }
@@ -107,7 +111,24 @@ type Snapshot = {
   aspectRatio: string;
   selectedFilter: string;
   history: unknown[];
-  texts: { text: string; fill: string; hasShadow: boolean; filters: number }[];
+  texts: {
+    text: string;
+    fill: string;
+    hasShadow: boolean;
+    filters: number;
+    fontFamily: string;
+    fontSize: number;
+    fontWeight: string;
+    fontStyle: string;
+    textAlign: string;
+    stroke: string | null;
+    strokeWidth: number;
+    textBackgroundColor: string;
+    charSpacing: number;
+    locked: boolean;
+    box: { left: number; top: number; width: number; height: number };
+  }[];
+  page: { w: number; h: number };
   background: { naturalWidth: number; naturalHeight: number; filters: number; coversCanvas: boolean } | null;
 };
 
@@ -129,7 +150,19 @@ export function editor<T>(page: Page, pick: (s: Snapshot) => T): Promise<T> {
           fill: o.fill,
           hasShadow: !!o.shadow,
           filters: o.filters?.length ?? 0,
+          fontFamily: o.fontFamily,
+          fontSize: o.fontSize,
+          fontWeight: String(o.fontWeight),
+          fontStyle: o.fontStyle,
+          textAlign: o.textAlign,
+          stroke: o.stroke ?? null,
+          strokeWidth: o.strokeWidth ?? 0,
+          textBackgroundColor: o.textBackgroundColor ?? "",
+          charSpacing: o.charSpacing ?? 0,
+          locked: !!o.data?.locked,
+          box: o.getBoundingRect(true, true),
         })),
+        page: { w: canvas ? canvas.getWidth() / canvas.getZoom() : 0, h: canvas ? canvas.getHeight() / canvas.getZoom() : 0 },
         background: bg
           ? {
               // Avec un filtre, Fabric affiche un canvas filtré ; la photo source reste dans _originalElement

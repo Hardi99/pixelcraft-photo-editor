@@ -3,10 +3,15 @@ import { restoreLayers, serializeLayers, snapshot, type LayeredCanvas } from "./
 
 function fakeCanvas(json: Record<string, unknown> = {}): LayeredCanvas & { calls: string[] } {
   const calls: string[] = [];
+  const objects = [
+    { data: { id: "a", locked: true }, set: vi.fn() },
+    { data: { id: "b" }, set: vi.fn() },
+  ];
   const canvas = {
     calls,
     backgroundImage: { src: "photo" } as unknown,
     viewportTransform: [0.5, 0, 0, 0.5, 0, 0],
+    getObjects: vi.fn(() => objects),
     toJSON: vi.fn(() => ({ version: "5.3.0", objects: [{ type: "i-text" }], backgroundImage: { src: "data:image/png;base64,AAAA" }, ...json })),
     loadFromJSON: vi.fn((_json: unknown, cb: () => void) => {
       // Comportement de Fabric : le fond et le zoom sont réinitialisés
@@ -58,5 +63,16 @@ describe("restoreLayers", () => {
     expect(canvas.viewportTransform).toEqual([0.5, 0, 0, 0.5, 0, 0]);
     expect(canvas.calls).toEqual(["load", "background", "viewport", "render"]);
     expect(done).toHaveBeenCalledOnce();
+  });
+});
+
+describe("verrou (US8-5)", () => {
+  it("réapplique le verrou stocké dans data.locked après un chargement", () => {
+    const canvas = fakeCanvas();
+    restoreLayers(canvas, { objects: [] });
+
+    const [locked, free] = canvas.getObjects() as unknown as { set: ReturnType<typeof vi.fn> }[];
+    expect(locked.set).toHaveBeenCalledWith(expect.objectContaining({ lockMovementX: true, hasControls: false, editable: false }));
+    expect(free.set).toHaveBeenCalledWith(expect.objectContaining({ lockMovementX: false, hasControls: true }));
   });
 });

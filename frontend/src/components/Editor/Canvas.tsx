@@ -6,12 +6,16 @@ import { useEditorStore, CANVAS_SIZES, DEFAULT_ADJUSTMENTS } from "@/stores/edit
 import { restoreLayers, serializeLayers, snapshot } from "@/lib/layers";
 import { buildFilters, isPngOrJpeg, loadBackground, readAsDataURL } from "@/lib/scene";
 import { trackEdit } from "@/lib/tracking";
+import { refreshTextFonts } from "@/lib/text";
+import { duplicateObject, isLocked, moveBy, pageBox } from "@/lib/objects";
+import { snapToPage } from "@/lib/snapping";
 import { SafeZoneOverlay } from "@/components/Editor/SafeZoneOverlay";
 import type { ActiveTool, CanvasLayers } from "@/types";
 import { toast } from "sonner";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 const MIN_DIMENSION = 50; // px
+const SNAP_DISTANCE_PX = 8; // distance d'aimantation, en pixels à l'écran
 
 export function Canvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,7 +29,6 @@ export function Canvas() {
   const clipboardRef = useRef<fabric.Object | null>(null);
 
   const imageLoaded = useEditorStore((s) => s.imageLoaded);
-  const activeTool = useEditorStore((s) => s.activeTool);
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
   const sceneId = useEditorStore((s) => s.sceneId);
 
@@ -72,6 +75,7 @@ export function Canvas() {
           const record = () => {
             sceneReadyRef.current = true;
             pushHistory(snapshot(fc));
+            void refreshTextFonts(fc); // un projet rouvert peut utiliser des polices pas encore chargées
           };
           if (layers) restoreLayers(fc, layers, record);
           else record();
@@ -79,17 +83,54 @@ export function Canvas() {
         .catch(() => toast.error("Impossible de charger l'image du projet."));
     }
 
-    // Track selected object
-    fc.on("selection:created", (e) => {
+    // Sélection : les panneaux (texte, mise en page) se relisent à chaque changement
+    const onSelection = (e: fabric.IEvent) => {
       setSelectedObjectId(e.selected?.[0]?.data?.id ?? null);
-    });
-    fc.on("selection:updated", (e) => {
-      setSelectedObjectId(e.selected?.[0]?.data?.id ?? null);
-    });
-    fc.on("selection:cleared", () => setSelectedObjectId(null));
+      useEditorStore.getState().bumpSelection();
+    };
+    fc.on("selection:created", onSelection);
+    fc.on("selection:updated", onSelection);
+    fc.on("selection:cleared", onSelection);
 
-    // Auto-save history on modification
-    fc.on("object:modified", () => pushHistory(snapshot(fc)));
+    // Repères magnétiques (US8-1) : dessinés sur le calque d'interaction de Fabric
+    // (upper canvas), qui n'est jamais exporté.
+    // contextTop existe dans Fabric 5 mais n'est pas déclaré dans @types/fabric
+    const topContext = (fc as unknown as { contextTop: CanvasRenderingContext2D }).contextTop;
+    const clearGuides = () => fc.clearContext(topContext);
+    fc.on("object:moving", (e) => {
+      const obj = e.target;
+      if (!obj) return;
+      const zoom = fc.getZoom();
+      const snap = snapToPage(pageBox(obj), { w: canvasW, h: canvasH }, SNAP_DISTANCE_PX / zoom);
+      if (snap.dx || snap.dy) moveBy(obj, snap.dx, snap.dy);
+
+      clearGuides();
+      const ctx = topContext;
+      ctx.save();
+      ctx.strokeStyle = "#F5A524";
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      if (snap.guideX !== null) {
+        ctx.beginPath();
+        ctx.moveTo(snap.guideX * zoom + 0.5, 0);
+        ctx.lineTo(snap.guideX * zoom + 0.5, fc.getHeight());
+        ctx.stroke();
+      }
+      if (snap.guideY !== null) {
+        ctx.beginPath();
+        ctx.moveTo(0, snap.guideY * zoom + 0.5);
+        ctx.lineTo(fc.getWidth(), snap.guideY * zoom + 0.5);
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+    fc.on("mouse:up", clearGuides);
+
+    // Historique après chaque modification (déplacement, redimensionnement, saisie de texte)
+    fc.on("object:modified", () => {
+      pushHistory(snapshot(fc));
+      useEditorStore.getState().bumpSelection();
+    });
 
     // Keyboard shortcuts
     const onKey = (e: KeyboardEvent) => {
@@ -100,6 +141,7 @@ export function Canvas() {
 
       const mod = e.ctrlKey || e.metaKey;
       if ((e.key === "Delete" || e.key === "Backspace") && active) {
+        if (isLocked(active)) return; // US8-5 : un élément verrouillé ne se supprime pas
         fc.remove(active);
         fc.discardActiveObject();
         fc.renderAll();
@@ -110,20 +152,16 @@ export function Canvas() {
       } else if (mod && (e.key === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))) {
         e.preventDefault();
         useEditorStore.getState().redo();
-      } else if (mod && e.key === "c" && active) {
-        active.clone((cloned: fabric.Object) => { clipboardRef.current = cloned; });
-      } else if (mod && e.key === "v" && clipboardRef.current) {
-        clipboardRef.current.clone((cloned: fabric.Object) => {
-          cloned.set({
-            left: (cloned.left ?? 0) + 20,
-            top: (cloned.top ?? 0) + 20,
-            data: { id: crypto.randomUUID() },
-          });
-          fc.add(cloned);
-          fc.setActiveObject(cloned);
-          fc.renderAll();
+      } else if (mod && e.key.toLowerCase() === "d" && active) {
+        e.preventDefault(); // sinon le navigateur ajoute un favori
+        void duplicateObject(fc, active).then(() => {
           pushHistory(snapshot(fc));
+          useEditorStore.getState().bumpSelection();
         });
+      } else if (mod && e.key === "c" && active) {
+        clipboardRef.current = active;
+      } else if (mod && e.key === "v" && clipboardRef.current) {
+        void duplicateObject(fc, clipboardRef.current).then(() => pushHistory(snapshot(fc)));
       } else if (!mod) {
         const toolMap: Record<string, ActiveTool> = { v: "select", t: "text", s: "sticker", r: "crop" };
         const tool = toolMap[e.key.toLowerCase()];
@@ -153,41 +191,6 @@ export function Canvas() {
     // getScale dépend du format : la scène est reconstruite uniquement sur ces deux signaux
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [aspectRatio, sceneId]);
-
-  // Sync cursor with active tool
-  useEffect(() => {
-    const fc = fabricRef.current;
-    if (!fc) return;
-    fc.defaultCursor = activeTool === "text" ? "text" : "default";
-    fc.hoverCursor = activeTool === "text" ? "text" : "pointer";
-    fc.selection = activeTool === "select";
-
-    const handleCanvasClick = (opt: fabric.IEvent) => {
-      if (activeTool !== "text") return;
-      const pointer = fc.getPointer(opt.e as MouseEvent);
-      const itext = new fabric.IText("Votre texte", {
-        left: pointer.x,
-        top: pointer.y,
-        fontSize: 36,
-        fill: "#ffffff",
-        fontFamily: "Arial",
-        fontWeight: "bold",
-        shadow: new fabric.Shadow({ color: "rgba(0,0,0,0.6)", blur: 8, offsetX: 2, offsetY: 2 }),
-        data: { id: crypto.randomUUID() },
-      });
-      fc.add(itext);
-      fc.setActiveObject(itext);
-      itext.enterEditing();
-      itext.selectAll();
-      fc.renderAll();
-      useEditorStore.getState().pushHistory(snapshot(fc));
-      trackEdit("text");
-      useEditorStore.getState().setActiveTool("select");
-    };
-
-    fc.on("mouse:down", handleCanvasClick);
-    return () => { fc.off("mouse:down", handleCanvasClick); };
-  }, [activeTool, sceneId, aspectRatio]);
 
   const loadFile = useCallback(
     async (file: File) => {
