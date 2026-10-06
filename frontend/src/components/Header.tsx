@@ -8,6 +8,7 @@ import { useSaveProject } from "@/hooks/useProjects";
 import { serializeLayers } from "@/lib/layers";
 import { canvasThumbnail } from "@/lib/scene";
 import { cn } from "@/lib/utils";
+import { useIsPhone } from "@/hooks/useMediaQuery";
 import type { AppView, ProjectInput } from "@/types";
 import { toast } from "sonner";
 
@@ -34,7 +35,8 @@ export function Header({ onTogglePanel }: { onTogglePanel: () => void }) {
   const canRedo = useEditorStore((s) => s.historyIndex < s.history.length - 1);
 
   const saveProject = useSaveProject();
-  const inEditor = activeView === "editor";
+  const isPhone = useIsPhone();
+  const inEditor = activeView === "editor" && !isPhone;
 
   async function handleSave() {
     const s = useEditorStore.getState();
