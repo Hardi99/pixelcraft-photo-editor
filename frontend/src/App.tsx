@@ -12,10 +12,13 @@ import { KPIDashboard } from "@/components/KPIDashboard";
 import { AssistantBot } from "@/components/AssistantBot";
 import { useEditorStore } from "@/stores/editorStore";
 import { cn } from "@/lib/utils";
+import { useIsPhone } from "@/hooks/useMediaQuery";
+import { PhoneNotice } from "@/components/PhoneNotice";
 
 export default function App() {
   const activeView = useEditorStore((s) => s.activeView);
   const [panelOpen, setPanelOpen] = useState(false);
+  const isPhone = useIsPhone();
 
   return (
     <TooltipProvider delayDuration={300}>
@@ -23,7 +26,8 @@ export default function App() {
         <Header onTogglePanel={() => setPanelOpen((open) => !open)} />
 
         {/* L'éditeur reste monté (masqué) pour conserver le canvas Fabric entre les vues */}
-        <main className={cn("relative flex min-h-0 flex-1", activeView !== "editor" && "hidden")}>
+        {activeView === "editor" && isPhone && <PhoneNotice />}
+        <main className={cn("relative flex min-h-0 flex-1", (activeView !== "editor" || isPhone) && "hidden")}>
           <LeftSidebar />
 
           <div className="relative flex min-w-0 flex-1 flex-col">

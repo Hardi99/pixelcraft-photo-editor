@@ -57,11 +57,6 @@
   }
 }
 
-/* Fabric.js canvas cursor */
-.upper-canvas {
-  cursor: default !important;
-}
-
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

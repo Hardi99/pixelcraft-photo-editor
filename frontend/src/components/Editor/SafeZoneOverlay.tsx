@@ -1,5 +1,5 @@
 import { useEditorStore } from "@/stores/editorStore";
-import { instagramHiddenZones, type HiddenZone } from "@/lib/safeZones";
+import { hiddenZones, type HiddenZone } from "@/lib/safeZones";
 import { cn } from "@/lib/utils";
 
 const POSITION: Record<HiddenZone["edge"], (size: string) => React.CSSProperties> = {
@@ -15,16 +15,18 @@ const POSITION: Record<HiddenZone["edge"], (size: string) => React.CSSProperties
  */
 export function SafeZoneOverlay() {
   const aspectRatio = useEditorStore((s) => s.aspectRatio);
-  const show = useEditorStore((s) => s.showSafeZones && s.imageLoaded);
-  const zones = instagramHiddenZones(aspectRatio);
+  const network = useEditorStore((s) => s.previewNetwork);
+  const imageLoaded = useEditorStore((s) => s.imageLoaded);
+  const show = imageLoaded && network !== null;
+  const zones = network ? hiddenZones(network, aspectRatio) : [];
 
   return (
-    <div aria-hidden data-testid="safe-zones" className={cn("pointer-events-none absolute inset-0", !show && "hidden")}>
+    <div aria-hidden data-testid="safe-zones" data-network={network ?? "none"} className={cn("pointer-events-none absolute inset-0", !show && "hidden")}>
       {zones.map((zone) => (
         <div
           key={zone.edge}
           data-edge={zone.edge}
-          className="absolute flex items-center justify-center border-dashed border-safelight/70 bg-[repeating-linear-gradient(135deg,hsl(var(--ink)/0.35)_0_6px,transparent_6px_12px)]"
+          className="absolute flex items-center justify-center border-dashed border-safelight/70 bg-[repeating-linear-gradient(135deg,hsl(var(--safelight)/0.45)_0_6px,transparent_6px_12px)]"
           style={{
             ...POSITION[zone.edge](`${zone.size * 100}%`),
             [`border${zone.edge === "top" ? "Bottom" : zone.edge === "bottom" ? "Top" : zone.edge === "left" ? "Right" : "Left"}Width`]: 1,

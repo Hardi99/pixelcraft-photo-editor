@@ -65,36 +65,67 @@ test.describe("US2 — Choisir le format de publication", () => {
   });
 });
 
-test.describe("US3 — Écrire un texte lisible", () => {
+test("US2-3 · sans photo, choisir un format change le format au lieu d'ouvrir l'import", async ({ page }) => {
+  await openEditor(page);
+  // Régression : la zone de dépôt passait au-dessus du menu et interceptait le clic
+  let chooserOpened = false;
+  page.on("filechooser", () => (chooserOpened = true));
+
+  await page.getByRole("button", { name: "Format", exact: true }).click();
+  await page.getByRole("button", { name: /^9:16 / }).click();
+
+  await expect.poll(() => editor(page, (s) => s.aspectRatio)).toBe("9:16");
+  expect(chooserOpened).toBe(false);
+
+  // Et l'import fonctionne ensuite, dans le format choisi
+  await importPhoto(page);
+  expect(await editor(page, (s) => s.aspectRatio)).toBe("9:16");
+  expect(await editor(page, (s) => s.background?.coversCanvas)).toBe(true);
+});
+
+test.describe("US7 — Vérifier le rendu sur Instagram et X", () => {
   test.beforeEach(async ({ page }) => {
     await openEditor(page);
     await importPhoto(page);
   });
 
-  test("US3-1 · le texte posé est blanc avec une ombre", async ({ page }) => {
-    await addText(page, "Bonjour");
+  test("US7-1 · un seul aperçu à la fois, avec le logo de chaque réseau", async ({ page }) => {
+    const instagram = page.getByRole("button", { name: "Aperçu Instagram" });
+    const x = page.getByRole("button", { name: "Aperçu X (Twitter)" });
+    await expect(instagram).toHaveAttribute("aria-pressed", "true"); // par défaut
+    await expect(instagram.locator("svg")).toBeVisible();
 
-    expect(await editor(page, (s) => s.texts)).toEqual([
-      expect.objectContaining({ text: "Bonjour", fill: "#ffffff", hasShadow: true }),
-    ]);
+    await x.click();
+    await expect(x).toHaveAttribute("aria-pressed", "true");
+    await expect(instagram).toHaveAttribute("aria-pressed", "false");
+    await expect(page.getByTestId("safe-zones")).toHaveAttribute("data-network", "x");
+
+    await x.click(); // re-cliquer désactive
+    await expect(page.getByTestId("safe-zones")).toBeHidden();
   });
 
-  test("US3-3 · en story, les zones masquées par Instagram sont signalées", async ({ page }) => {
+  test("US7-2 · Instagram : en story, haut et bas masqués par l'interface", async ({ page }) => {
     await chooseFormat(page, "9:16");
-
     const zones = page.getByTestId("safe-zones");
     await expect(zones).toBeVisible();
     await expect(zones.locator("[data-edge=top]")).toContainText("nom du compte");
     await expect(zones.locator("[data-edge=bottom]")).toContainText("barre de réponse");
   });
 
-  test("US3-3 · en carré, les bords rognés par la grille du profil sont signalés", async ({ page }) => {
+  test("US7-2 · Instagram : en carré, bords rognés par la grille du profil", async ({ page }) => {
     const zones = page.getByTestId("safe-zones");
     await expect(zones.locator("[data-edge=left]")).toBeAttached();
     await expect(zones.locator("[data-edge=right]")).toBeAttached();
   });
 
-  test("US3-4 et US6-3 · ni les repères ni la sélection ne sont exportés", async ({ page }) => {
+  test("US7-3 · X : en carré, le haut et le bas sortent du cadrage 16:9 du fil", async ({ page }) => {
+    await page.getByRole("button", { name: "Aperçu X (Twitter)" }).click();
+    const zones = page.getByTestId("safe-zones");
+    await expect(zones.locator("[data-edge=top]")).toContainText("cadrage 16:9");
+    await expect(zones.locator("[data-edge=bottom]")).toBeAttached();
+  });
+
+  test("US7-4 et US6-3 · ni les repères ni la sélection ne sont exportés", async ({ page }) => {
     await chooseFormat(page, "9:16");
     await addText(page, "Story");
 
@@ -102,8 +133,8 @@ test.describe("US3 — Écrire un texte lisible", () => {
     expect(await page.getByTestId("safe-zones").isVisible()).toBe(true);
     const withGuidesAndSelection = await exportAs(page, "PNG");
 
-    // 2e export : repères masqués, plus rien de sélectionné
-    await page.getByRole("button", { name: "Zones masquées par Instagram" }).click();
+    // 2e export : aperçu désactivé, plus rien de sélectionné
+    await page.getByRole("button", { name: "Aperçu Instagram" }).click();
     expect(await page.getByTestId("safe-zones").isVisible()).toBe(false);
     const clean = await exportAs(page, "PNG");
 
@@ -144,8 +175,8 @@ test.describe("US5 — Enregistrer et reprendre un projet", () => {
     await openEditor(page);
     await importPhoto(page);
     await chooseFormat(page, "4:5");
-    await addText(page, "Premier", { x: 0.5, y: 0.3 });
-    await addText(page, "Second", { x: 0.5, y: 0.7 });
+    await addText(page, "Premier", "title");
+    await addText(page, "Second");
     await applyFilter(page, "Juno");
 
     await page.getByRole("textbox", { name: "Nom du projet" }).fill("Test e2e");
@@ -176,6 +207,49 @@ test.describe("US5 — Enregistrer et reprendre un projet", () => {
   });
 });
 
+test("US5-4 · un projet enregistré au format Fabric 5 se rouvre à l'identique", async ({ page }) => {
+  await openEditor(page);
+  // Calques tels que les enregistrait la v1 (Fabric 5 : type "i-text", ancrage en haut à gauche)
+  const legacyLayers = {
+    version: "5.3.0",
+    background: "#18181b",
+    objects: [
+      {
+        type: "i-text", version: "5.3.0", originX: "left", originY: "top", left: 100, top: 120,
+        fill: "#ffffff", fontFamily: "Arial", fontSize: 40, text: "Ancien texte", styles: {}, data: { id: "legacy-1" },
+      },
+    ],
+  };
+  const png = makePng(800, 800).toString("base64");
+  // Même backend que l'application : VITE_API_URL en CI, le backend Docker local sinon
+  const apiBase = process.env.VITE_API_URL ?? "http://localhost:3001";
+  await page.evaluate(async ({ layers, png, base }) => {
+    // Le jeton visiteur est créé au premier appel : on passe par l'API comme le ferait l'application
+    let token = localStorage.getItem("pixelcraft.visitorToken");
+    if (!token) {
+      token = (await (await fetch(`${base}/api/v1/visitors`, { method: "POST" })).json()).token as string;
+      localStorage.setItem("pixelcraft.visitorToken", token);
+    }
+    const form = new FormData();
+    form.append("project[title]", "Projet v1");
+    form.append("project[image]", new Blob([Uint8Array.from(atob(png), (c) => c.charCodeAt(0))], { type: "image/png" }), "v1.png");
+    form.append("project[layers]", JSON.stringify(layers));
+    form.append("project[settings]", JSON.stringify({ aspect_ratio: "1:1" }));
+    const res = await fetch(`${base}/api/v1/projects`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+  }, { layers: legacyLayers, png, base: apiBase });
+
+  await page.reload();
+  await page.getByRole("button", { name: "Mes projets" }).click();
+  await page.getByRole("button", { name: "Ouvrir" }).first().click();
+
+  await expect.poll(() => editor(page, (s) => s.texts.map((t) => t.text))).toEqual(["Ancien texte"]);
+  const { box } = (await editor(page, (s) => s.texts))[0];
+  // Même position qu'en v1 : coin haut-gauche à (100, 120), à la marge de la boîte près
+  expect(Math.abs(box.left - 100)).toBeLessThan(2);
+  expect(Math.abs(box.top - 120)).toBeLessThan(2);
+});
+
 test.describe("US6 — Exporter pour Instagram", () => {
   const EXPECTED: Record<string, { width: number; height: number }> = {
     "1:1": { width: 1080, height: 1080 },
@@ -198,7 +272,7 @@ test.describe("US6 — Exporter pour Instagram", () => {
   });
 
   test("US6-2 · les dimensions ne dépendent pas de la taille de l'écran", async ({ page }) => {
-    await page.setViewportSize({ width: 820, height: 640 });
+    await page.setViewportSize({ width: 960, height: 640 }); // petit écran d'ordinateur (sous 900 px : téléphone)
     await openEditor(page);
     await importPhoto(page);
     await chooseFormat(page, "4:5");

@@ -4,15 +4,23 @@ import type { CanvasLayers } from "@/types";
  * Sous-ensemble de fabric.Canvas utilisé ici. Ce module n'importe pas Fabric :
  * il reste testable en Node et ne charge pas la lib dans le store.
  */
+export interface LayerObject {
+  data?: { id?: string; locked?: boolean };
+  set(options: Record<string, unknown>): unknown;
+}
+
 export interface LayeredCanvas {
-  toJSON(propertiesToInclude?: string[]): Record<string, unknown>;
-  loadFromJSON(json: unknown, callback: () => void): unknown;
-  backgroundImage?: unknown;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  setBackgroundImage(image: any, callback: () => void): unknown;
-  viewportTransform?: number[];
-  setViewportTransform(vpt: number[]): unknown;
-  renderAll(): unknown;
+  toObject(propertiesToInclude?: any[]): Record<string, unknown>;
+  getObjects(): LayerObject[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  loadFromJSON(json: any): Promise<unknown>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  backgroundImage?: any;
+  viewportTransform: number[] | readonly number[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  setViewportTransform(vpt: any): unknown;
+  requestRenderAll(): unknown;
 }
 
 /**
@@ -22,7 +30,8 @@ export interface LayeredCanvas {
  */
 export function serializeLayers(canvas: LayeredCanvas): CanvasLayers {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { backgroundImage, ...layers } = canvas.toJSON(["data"]);
+  // toJSON() ne prend plus d'argument depuis Fabric 6 : toObject inclut le champ data
+  const { backgroundImage, ...layers } = canvas.toObject(["data"]);
   return layers;
 }
 
@@ -30,16 +39,33 @@ export function snapshot(canvas: LayeredCanvas): string {
   return JSON.stringify(serializeLayers(canvas));
 }
 
-/** Remplace les calques en conservant l'image de fond et le zoom courants. */
-export function restoreLayers(canvas: LayeredCanvas, layers: CanvasLayers | string, done?: () => void) {
-  const background = canvas.backgroundImage;
-  const viewport = canvas.viewportTransform?.slice();
+/** Propriétés Fabric d'un élément verrouillé : ni déplacement, ni transformation, ni édition. */
+export function lockProps(locked: boolean) {
+  return {
+    lockMovementX: locked,
+    lockMovementY: locked,
+    lockScalingX: locked,
+    lockScalingY: locked,
+    lockRotation: locked,
+    hasControls: !locked,
+    editable: !locked,
+  };
+}
 
-  // loadFromJSON vide le canvas (fond compris) et réinitialise le zoom.
-  canvas.loadFromJSON(layers, () => {
-    if (background) canvas.setBackgroundImage(background, () => {});
-    if (viewport) canvas.setViewportTransform(viewport);
-    canvas.renderAll();
-    done?.();
-  });
+/** Le verrou est stocké dans data.locked (sérialisé) ; on le réapplique après chaque chargement. */
+export function applyLocks(canvas: LayeredCanvas) {
+  for (const obj of canvas.getObjects()) obj.set(lockProps(!!obj.data?.locked));
+}
+
+/** Remplace les calques en conservant l'image de fond et le zoom courants. */
+export async function restoreLayers(canvas: LayeredCanvas, layers: CanvasLayers | string) {
+  const background = canvas.backgroundImage;
+  const viewport = [...canvas.viewportTransform];
+
+  // loadFromJSON vide le canvas (fond compris) et peut réinitialiser le zoom.
+  await canvas.loadFromJSON(typeof layers === "string" ? JSON.parse(layers) : layers);
+  if (background) canvas.backgroundImage = background;
+  canvas.setViewportTransform(viewport);
+  applyLocks(canvas);
+  canvas.requestRenderAll();
 }

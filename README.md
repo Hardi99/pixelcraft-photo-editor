@@ -6,12 +6,12 @@
 ![RSpec](https://img.shields.io/badge/RSpec-39_tests-6DB33F)
 ![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?logo=typescript&logoColor=white)
-![Fabric.js](https://img.shields.io/badge/Fabric.js-5.3-FF6B35)
+![Fabric.js](https://img.shields.io/badge/Fabric.js-7.4-FF6B35)
 ![Docker](https://img.shields.io/badge/Docker_Compose-2496ED?logo=docker&logoColor=white)
 
 Éditeur de photos pour préparer ses publications Instagram : on importe une photo PNG/JPG, on ajoute du texte, des stickers et des filtres, on exporte aux dimensions exactes d'Instagram, on sauvegarde le projet et on suit l'usage dans un tableau de bord.
 
-📋 **Ce que fait l'application, et comment c'est vérifié : [`docs/user-stories.md`](docs/user-stories.md).** Un epic, six user stories, des critères d'acceptation numérotés, chacun relié au test qui le vérifie.
+📋 **Ce que fait l'application, et comment c'est vérifié : [`docs/user-stories.md`](docs/user-stories.md).** Un epic, neuf user stories, des critères d'acceptation numérotés, chacun relié au test qui le vérifie.
 
 Le backend Rails porte les règles métier (propriété des projets, stockage des images, calcul des KPI) ; le frontend React gère l'édition sur le canvas.
 
@@ -19,7 +19,13 @@ Le backend Rails porte les règles métier (propriété des projets, stockage de
 
 ## ✨ Fonctionnalités
 
-**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), texte éditable sur le canvas (police, taille, couleur, ombre…), 12 stickers, 11 filtres Instagram + réglages manuels, 5 formats (1:1, 4:5, 3:4, 9:16, 16:9), repères des zones masquées par Instagram (haut et bas des stories, bords rognés dans la grille du profil), annuler/rétablir (50 états), copier/coller.
+**Éditeur** — upload PNG/JPG (glisser-déposer, vérification de la signature binaire), 12 stickers, 11 filtres + réglages manuels, 5 formats (1:1, 4:5, 3:4, 9:16, 16:9), annuler/rétablir (50 états), copier/coller/dupliquer.
+
+**Texte façon Canva** — styles prêts (titre, sous-titre, corps), 15 polices Google choisies pour les réseaux et affichées dans leur fonte, contour, ombre réglable, surlignage, espacement des lettres et interligne, majuscules. Mise en page : repères magnétiques (centre et bords), alignement sur la page, premier plan / arrière-plan, duplication (Ctrl+D), verrouillage conservé à l'enregistrement.
+
+**Aperçu Instagram et X** — boutons aux logos des réseaux (icônes Radix) : l'éditeur signale ce que chaque réseau masque ou rogne (interface des stories, grille du profil en 3:4, cadrage 16:9 du fil X). Ces repères ne sont jamais exportés.
+
+**Écrans** — conçu pour ordinateur et tablette (testé de 1024 × 768 à 1920 × 1080) ; sur téléphone, un message remplace l'éditeur et Mes projets / Statistiques restent consultables.
 
 **Export pour les réseaux sociaux** — chaque format sort aux dimensions attendues par les plateformes, quelle que soit la taille de l'écran : 1080 × 1080 (publication carrée), 1080 × 1350 (portrait 4:5), 1080 × 1440 (portrait 3:4, entier dans la grille du profil), 1080 × 1920 (stories, Reels, TikTok), 1920 × 1080 (paysage, YouTube, X, LinkedIn). JPEG ou PNG, nom de fichier explicite (`mon-projet-story-1080x1920.jpg`), et partage direct vers les applis quand l'appareil le permet (Web Share API, surtout sur mobile).
 

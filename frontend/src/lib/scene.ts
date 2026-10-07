@@ -1,68 +1,64 @@
-import { fabric } from "fabric";
+import { FabricImage, filters as fabricFilters, type Canvas, type filters as FiltersNS } from "fabric";
 import { FILTER_PRESETS } from "@/lib/filters";
 import type { ImageAdjustments } from "@/types";
 
-type FilterClass = new (options: object) => fabric.IBaseFilter;
+type Filter = InstanceType<(typeof FiltersNS)[keyof typeof FiltersNS]>;
+type FilterClass = new (options: object) => Filter;
 
 /** Preset Instagram + réglages manuels empilés par-dessus. */
-export function buildFilters(presetName: string, adj: ImageAdjustments): fabric.IBaseFilter[] {
-  const filters: fabric.IBaseFilter[] = [];
+export function buildFilters(presetName: string, adj: ImageAdjustments): Filter[] {
+  const filters: Filter[] = [];
   const preset = FILTER_PRESETS.find((f) => f.name === presetName);
-  const classes = fabric.Image.filters as unknown as Record<string, FilterClass>;
+  const classes = fabricFilters as unknown as Record<string, FilterClass>;
 
   for (const { type, options } of preset?.fabricFilters ?? []) {
     if (classes[type]) filters.push(new classes[type](options));
   }
-  if (adj.brightness !== 0) filters.push(new fabric.Image.filters.Brightness({ brightness: adj.brightness }));
-  if (adj.contrast !== 0) filters.push(new fabric.Image.filters.Contrast({ contrast: adj.contrast }));
-  if (adj.saturation !== 0) filters.push(new fabric.Image.filters.Saturation({ saturation: adj.saturation }));
-  if (adj.blur > 0) filters.push(new fabric.Image.filters.Blur({ blur: adj.blur }));
+  if (adj.brightness !== 0) filters.push(new fabricFilters.Brightness({ brightness: adj.brightness }));
+  if (adj.contrast !== 0) filters.push(new fabricFilters.Contrast({ contrast: adj.contrast }));
+  if (adj.saturation !== 0) filters.push(new fabricFilters.Saturation({ saturation: adj.saturation }));
+  if (adj.blur > 0) filters.push(new fabricFilters.Blur({ blur: adj.blur }));
   return filters;
 }
 
-export function applyFilters(canvas: fabric.Canvas, filters: fabric.IBaseFilter[]) {
+export function applyFilters(canvas: Canvas, filters: Filter[]) {
   const img = canvas.backgroundImage;
-  if (!(img instanceof fabric.Image)) return;
+  if (!(img instanceof FabricImage)) return;
   img.filters = filters;
   img.applyFilters();
-  canvas.renderAll();
+  canvas.requestRenderAll();
 }
 
 /**
  * Pose la photo en fond, en mode « cover » (remplit le format, rogne le surplus).
  * Les dimensions sont logiques (avant zoom), comme les coordonnées des calques.
  */
-export function loadBackground(
-  canvas: fabric.Canvas,
+export async function loadBackground(
+  canvas: Canvas,
   url: string,
   size: { w: number; h: number },
-  filters: fabric.IBaseFilter[] = [],
-): Promise<fabric.Image> {
-  return new Promise((resolve, reject) => {
-    fabric.Image.fromURL(
-      url,
-      (img) => {
-        if (!img.width || !img.height) return reject(new Error("Image illisible"));
-        const scale = Math.max(size.w / img.width, size.h / img.height);
-        img.set({
-          scaleX: scale,
-          scaleY: scale,
-          left: (size.w - img.width * scale) / 2,
-          top: (size.h - img.height * scale) / 2,
-          selectable: false,
-          evented: false,
-        });
-        img.filters = filters;
-        img.applyFilters();
-        canvas.setBackgroundImage(img, () => {
-          canvas.renderAll();
-          resolve(img);
-        });
-      },
-      // Requis pour exporter une image servie par le backend sans « tainter » le canvas.
-      { crossOrigin: "anonymous" },
-    );
+  filters: Filter[] = [],
+): Promise<FabricImage> {
+  // crossOrigin requis pour exporter une image servie par le backend sans « tainter » le canvas
+  const img = await FabricImage.fromURL(url, { crossOrigin: "anonymous" });
+  if (!img.width || !img.height) throw new Error("Image illisible");
+  const scale = Math.max(size.w / img.width, size.h / img.height);
+  img.set({
+    // Fabric 7 ancre les objets au centre par défaut : on centre la photo sur la page
+    originX: "center",
+    originY: "center",
+    left: size.w / 2,
+    top: size.h / 2,
+    scaleX: scale,
+    scaleY: scale,
+    selectable: false,
+    evented: false,
   });
+  img.filters = filters;
+  img.applyFilters();
+  canvas.backgroundImage = img;
+  canvas.requestRenderAll();
+  return img;
 }
 
 export function readAsDataURL(file: Blob): Promise<string> {
@@ -81,7 +77,7 @@ export async function isPngOrJpeg(file: Blob): Promise<boolean> {
   return hex.startsWith("ffd8ff") || hex === "89504e47";
 }
 
-export function canvasThumbnail(canvas: fabric.Canvas, width = 480): Promise<Blob> {
+export function canvasThumbnail(canvas: Canvas, width = 480): Promise<Blob> {
   const dataUrl = canvas.toDataURL({ format: "jpeg", quality: 0.8, multiplier: width / canvas.getWidth() });
   return fetch(dataUrl).then((res) => res.blob());
 }
@@ -90,7 +86,7 @@ export function canvasThumbnail(canvas: fabric.Canvas, width = 480): Promise<Blo
  * Rend la scène aux dimensions exactes demandées, quelle que soit la taille
  * d'affichage du canvas (l'ancien export « × 2 » dépendait de la fenêtre).
  */
-export function renderAtSize(canvas: fabric.Canvas, width: number, height: number): HTMLCanvasElement {
+export function renderAtSize(canvas: Canvas, width: number, height: number): HTMLCanvasElement {
   canvas.discardActiveObject();
   canvas.renderAll();
   const rendered = canvas.toCanvasElement(width / canvas.getWidth());

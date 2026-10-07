@@ -8,7 +8,7 @@ type SliderProps = React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> &
 };
 
 const Slider = React.forwardRef<React.ElementRef<typeof SliderPrimitive.Root>, SliderProps>(
-  ({ className, centered = false, min = 0, max = 100, value, ...props }, ref) => {
+  ({ className, centered = false, min = 0, max = 100, value, "aria-label": ariaLabel, "aria-labelledby": ariaLabelledby, ...props }, ref) => {
     const v = value?.[0] ?? 0;
     const toPercent = (n: number) => ((n - min) / (max - min)) * 100;
     const [from, to] = [toPercent(Math.min(0, v)), toPercent(Math.max(0, v))];
@@ -32,7 +32,8 @@ const Slider = React.forwardRef<React.ElementRef<typeof SliderPrimitive.Root>, S
             <SliderPrimitive.Range className="absolute h-full bg-safelight" />
           )}
         </SliderPrimitive.Track>
-        <SliderPrimitive.Thumb className="block h-3.5 w-3.5 rounded-full bg-paper shadow-[0_0_0_3px_hsl(var(--panel))] disabled:pointer-events-none disabled:opacity-50" />
+        {/* Le rôle « slider » est porté par la poignée : c'est elle qui doit avoir le nom */}
+        <SliderPrimitive.Thumb aria-label={ariaLabel} aria-labelledby={ariaLabelledby} className="block h-3.5 w-3.5 rounded-full bg-paper shadow-[0_0_0_3px_hsl(var(--panel))] disabled:pointer-events-none disabled:opacity-50" />
       </SliderPrimitive.Root>
     );
   }

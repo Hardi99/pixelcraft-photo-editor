@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { assetUrl } from "@/lib/api";
 import { restoreLayers } from "@/lib/layers";
-import type { ActiveTool, AspectRatio, AppView, CanvasLayers, ImageAdjustments, Project } from "@/types";
+import type { ActiveTool, AspectRatio, AppView, CanvasLayers, ImageAdjustments, PreviewNetwork, Project } from "@/types";
 
 // Avoid importing fabric types here to prevent circular deps
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -39,8 +39,10 @@ interface EditorStore {
   pendingLayers: CanvasLayers | null;
   /** Incrémenté pour forcer la reconstruction du canvas (ouverture d'un projet). */
   sceneId: number;
-  /** Affiche les zones masquées ou rognées par Instagram (repères jamais exportés). */
-  showSafeZones: boolean;
+  /** Aperçu du réseau choisi : zones masquées ou rognées (repères jamais exportés). */
+  previewNetwork: PreviewNetwork | null;
+  /** Incrémenté à chaque sélection ou modification d'objet : les panneaux se relisent. */
+  selectionTick: number;
 
   setCanvas: (canvas: FabricCanvas) => void;
   setImageLoaded: (loaded: boolean) => void;
@@ -53,7 +55,8 @@ interface EditorStore {
   setCurrentProject: (project: Project | null) => void;
   setProjectTitle: (title: string) => void;
   setImage: (url: string | null, file?: Blob | null) => void;
-  toggleSafeZones: () => void;
+  setPreviewNetwork: (network: PreviewNetwork | null) => void;
+  bumpSelection: () => void;
   openProject: (project: Project) => void;
   startEditingTimer: () => void;
   getEditingTime: () => number;
@@ -83,7 +86,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   imageFile: null,
   pendingLayers: null,
   sceneId: 0,
-  showSafeZones: true,
+  previewNetwork: "instagram",
+  selectionTick: 0,
 
   setCanvas: (canvas) => set({ canvas }),
   setImageLoaded: (imageLoaded) => set({ imageLoaded }),
@@ -97,7 +101,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   setCurrentProject: (currentProject) => set({ currentProject }),
   setProjectTitle: (projectTitle) => set({ projectTitle }),
   setImage: (imageUrl, imageFile = null) => set({ imageUrl, imageFile }),
-  toggleSafeZones: () => set((s) => ({ showSafeZones: !s.showSafeZones })),
+  setPreviewNetwork: (previewNetwork) => set({ previewNetwork }),
+  bumpSelection: () => set((s) => ({ selectionTick: s.selectionTick + 1 })),
 
   openProject: (project) =>
     set((s) => ({
@@ -136,14 +141,14 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     const { canvas, history, historyIndex } = get();
     if (!canvas || historyIndex <= 0) return;
     set({ historyIndex: historyIndex - 1 });
-    restoreLayers(canvas, history[historyIndex - 1]);
+    void restoreLayers(canvas, history[historyIndex - 1]);
   },
 
   redo: () => {
     const { canvas, history, historyIndex } = get();
     if (!canvas || historyIndex >= history.length - 1) return;
     set({ historyIndex: historyIndex + 1 });
-    restoreLayers(canvas, history[historyIndex + 1]);
+    void restoreLayers(canvas, history[historyIndex + 1]);
   },
 
   canUndo: () => get().historyIndex > 0,

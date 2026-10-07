@@ -4,6 +4,8 @@ export type AspectRatio = "1:1" | "4:5" | "3:4" | "9:16" | "16:9";
 
 export type AppView = "editor" | "gallery" | "dashboard";
 
+export type PreviewNetwork = "instagram" | "x";
+
 export interface ImageAdjustments {
   brightness: number;
   contrast: number;
